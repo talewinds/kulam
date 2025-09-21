@@ -1,31 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Family Tree App</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Family Tree App (codeone)</title>
 <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
-    header { background:#800000; color:white; padding:1rem; text-align:center;}
-    .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
-    input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
-    button { background:#800000; color:white; border:none; cursor:pointer;}
-    button:hover { background:#a00000; }
-    .hidden { display:none;}
-    .family-entry { padding:1rem; border-bottom:1px solid #ccc; display: flex; justify-content: space-between; align-items: center;}
-    .family-entry button { width:auto; margin-left:0.5rem;}
-    .approved { color:green; }
-    .pending { color:orange; }
-    .blocked { color:red; }
-    #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
-    #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
-    #modal h3 { margin-top:0; }
-    #message { margin:0.5rem 0; color:green; }
-    #treeContainer { min-height:400px; margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
-    #treeContainer .node { font-size: 14px; }
-    #treeContainer .node:hover { cursor: pointer; }
-    .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
+  body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
+  header { background:#800000; color:white; padding:1rem; text-align:center;}
+  .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);} 
+  input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc; box-sizing: border-box;}
+  button { background:#800000; color:white; border:none; cursor:pointer; padding:0.5rem 0.75rem; }
+  button:hover { background:#a00000; }
+  .hidden { display:none;}
+  .family-entry { padding:1rem; border-bottom:1px solid #ccc; display:flex; justify-content:space-between; align-items:center;}
+  .family-entry button { width:auto; margin-left:0.5rem;}
+  .approved { color:green; }
+  .pending { color:orange; }
+  .blocked { color:red; }
+  #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
+  #modal { background:white; padding:1.25rem; border-radius:10px; max-width:520px; width:92%; box-sizing:border-box;}
+  #modal h3 { margin-top:0; }
+  #message { margin:0.5rem 0; color:green; }
+  #treeContainer { min-height:400px; margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
+  #treeContainer .node { font-size: 14px; }
+  #treeContainer .node:hover { cursor: pointer; }
+  .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
+  .admin-section { margin-top:1rem; padding:0.5rem; border:1px dashed #ddd; border-radius:6px; background:#fafafa; }
+  .pending-item { padding:0.5rem 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:0.5rem; }
+  .small-btn { padding:0.25rem 0.5rem; font-size:0.9rem; }
+  .muted { color:#666; font-size:0.9rem; }
 </style>
+
+<!-- Treant CSS/JS (diagram library) -->
 <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
 <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
 <script src="https://fperucic.github.io/treant-js/Treant.js"></script>
@@ -33,78 +39,124 @@
 <body>
 <header><h1>Family Tree Portal</h1></header>
 
+<!-- LOGIN -->
 <div class="container" id="loginDiv">
-    <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button id="loginBtn">Login</button>
-    <button id="registerBtn">Register</button>
+  <h2>Login</h2>
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Password" />
+  <div style="display:flex; gap:0.5rem;">
+    <button id="loginBtn" style="flex:1">Login</button>
+    <button id="registerBtn" style="flex:1; background:#3b6; color:#fff;">Register</button>
+  </div>
 </div>
 
+<!-- DASHBOARD -->
 <div class="container hidden" id="dashboardDiv">
-    <button id="logoutBtn">Logout</button>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2>Dashboard</h2>
-    <h3>Add Family Member</h3>
-    <form id="familyForm">
-        <input type="text" name="name" placeholder="Name" required>
-        <input type="text" name="nickname" placeholder="Nickname">
-        <input type="text" name="place" placeholder="Place">
-        <input type="text" name="gothram" placeholder="Gothram">
-        <select name="married">
-            <option value="">Marital Status</option>
-            <option value="Married">Married</option>
-            <option value="Unmarried">Unmarried</option>
-        </select>
-        <input type="text" name="phone" placeholder="Phone Number">
-        <label for="parentIdSelect" style="display:block; margin-top:1rem;">Select Parent:</label>
-        <select id="parentIdSelect" name="parentId">
-            <option value="">(No Parent)</option>
-        </select>
-        <button type="submit">Add</button>
-    </form>
-    <div id="message"></div>
+    <button id="logoutBtn">Logout</button>
+  </div>
 
-    <h3>Search Family</h3>
-    <input type="text" id="searchInput" placeholder="Enter Name to search">
+  <h3>Add Family Member</h3>
+  <form id="familyForm">
+    <input type="text" name="name" placeholder="Name" required />
+    <input type="text" name="nickname" placeholder="Nickname" />
+    <input type="text" name="place" placeholder="Place" />
+    <input type="text" name="gothram" placeholder="Gothram" />
+    <select name="married">
+      <option value="">Marital Status</option>
+      <option value="Married">Married</option>
+      <option value="Unmarried">Unmarried</option>
+    </select>
+    <input type="text" name="phone" placeholder="Phone Number" />
+    <label for="parentIdSelect" style="display:block; margin-top:0.5rem;">Select Parent:</label>
+    <select id="parentIdSelect" name="parentId"><option value="">(No Parent)</option></select>
+    <button type="submit">Add</button>
+  </form>
+
+  <div id="message" class="muted"></div>
+
+  <h3>Search Family</h3>
+  <div style="display:flex; gap:0.5rem;">
+    <input type="text" id="searchInput" placeholder="Enter Name to search" />
     <button id="searchBtn">Search</button>
+  </div>
 
-    <h3>Family Tree Entries</h3>
-    <div id="familyList"></div>
+  <h3>Family Tree Entries</h3>
+  <div id="familyList"></div>
 
-    <h3>Family Tree Diagram</h3>
-    <div id="treeContainer"></div>
+  <h3>Family Tree Diagram</h3>
+  <div id="treeContainer"></div>
 
-    <div id="adminPanel" class="hidden">
-        <h3>Admin Panel</h3>
-        <p>Approve pending entries, edits, access requests, block/unblock members here.</p>
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="hidden admin-section">
+    <h3>Admin Panel</h3>
+    <p class="muted">Approve pending users and family entries; block/unblock members.</p>
+
+    <!-- Pending users (populated dynamically) -->
+    <div id="pendingUsers" style="margin-top:0.5rem;">
+      <!-- Populated by loadPendingUsers() -->
     </div>
+
+    <!-- Pending family entries -->
+    <div id="pendingFamilyEntries" style="margin-top:0.75rem;">
+      <!-- Populated by loadPendingFamilyEntries() -->
+    </div>
+  </div>
 </div>
 
+<!-- Modal overlay (register form) -->
 <div id="modalOverlay">
-    <div id="modal"></div>
+  <div id="modal"></div>
 </div>
 
 <script type="module">
+/* =========================
+   Firebase + App logic
+   ========================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  doc,
+  setDoc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
+/* ---------- Firebase config ---------- */
 const firebaseConfig = {
-    apiKey: "AIzaSyDiE8jLUA3lA1mTfBhDH_KQQ5J_sLbGQk8",
-    authDomain: "kulam-family-tree.firebaseapp.com",
-    projectId: "kulam-family-tree",
-    storageBucket: "kulam-family-tree.appspot.com",
-    messagingSenderId: "219860158687",
-    appId: "1:219860158687:web:a2eefd26049298fcdb016a",
-    measurementId: "G-74J5ZKDEDX"
+  apiKey: "AIzaSyDiE8jLUA3lA1mTfBhDH_KQQ5J_sLbGQk8",
+  authDomain: "kulam-family-tree.firebaseapp.com",
+  projectId: "kulam-family-tree",
+  storageBucket: "kulam-family-tree.appspot.com",
+  messagingSenderId: "219860158687",
+  appId: "1:219860158687:web:a2eefd26049298fcdb016a",
+  measurementId: "G-74J5ZKDEDX"
 };
 
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// analytics may fail in some non-https/local environments; swallow errors
+let analytics;
+try { analytics = getAnalytics(app); } catch(e){ console.warn("Analytics init failed:", e); }
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+/* ---------- DOM elements ---------- */
 const loginDiv = document.getElementById('loginDiv');
 const dashboardDiv = document.getElementById('dashboardDiv');
 const emailInput = document.getElementById('email');
@@ -122,294 +174,471 @@ const modalOverlay = document.getElementById('modalOverlay');
 const modal = document.getElementById('modal');
 const treeContainer = document.getElementById('treeContainer');
 const parentIdSelect = document.getElementById('parentIdSelect');
+const pendingUsersDiv = document.getElementById('pendingUsers');
+const pendingFamilyEntriesDiv = document.getElementById('pendingFamilyEntries');
 
 let currentUser = null;
 let isAdmin = false;
 let familyMembersData = [];
 let pendingRegistrationData = null;
 
+// intervals for admin refresh
+let adminRefreshIntervalId = null;
+
+/* ---------- Auth state listener ---------- */
 onAuthStateChanged(auth, async (user) => {
-    loginDiv.classList.add('hidden');
-    dashboardDiv.classList.add('hidden');
+  console.log("onAuthStateChanged -> user:", user ? user.uid : null);
+  // hide main sections first
+  loginDiv.classList.add('hidden');
+  dashboardDiv.classList.add('hidden');
 
-    if(user){
-        currentUser = user;
+  // clear any admin refresh interval if user changed
+  if(adminRefreshIntervalId){ clearInterval(adminRefreshIntervalId); adminRefreshIntervalId = null; }
 
-        if(pendingRegistrationData) {
-            try {
-                await setDoc(doc(db, 'users', user.uid), {
-                    uid: user.uid,
-                    name: pendingRegistrationData.name,
-                    year: pendingRegistrationData.year,
-                    gender: pendingRegistrationData.gender,
-                    tamilBrahmin: pendingRegistrationData.tamilBrahmin,
-                    gothram: pendingRegistrationData.gothram,
-                    nativePlace: pendingRegistrationData.nativePlace,
-                    email: pendingRegistrationData.email,
-                    phone: pendingRegistrationData.phone,
-                    isAdmin: false,
-                    blocked: false,
-                    approved: false
-                });
-                pendingRegistrationData = null;
+  if(user) {
+    currentUser = user;
+    console.log("Signed in user:", user.uid);
 
-                const successMsg = document.createElement('div');
-                successMsg.className = 'reg-success-msg';
-                successMsg.innerText = 'Registration submitted! Awaiting admin approval. Signing you out...';
-                loginDiv.appendChild(successMsg);
-                setTimeout(() => {
-                    successMsg.remove();
-                    signOut(auth);
-                }, 3000);
-                return;
-
-            } catch(e) {
-                console.error("Error creating user document:", e);
-                alert("An error occurred during registration. Please try again.");
-                signOut(auth);
-                return;
-            }
-        }
-
-        const userDocSnap = await getDoc(doc(db,'users',user.uid));
-        if(userDocSnap.exists()){
-            const data = userDocSnap.data();
-            isAdmin = data.isAdmin || false;
-            if(data.blocked){
-                alert('You are blocked by admin.');
-                signOut(auth);
-                return;
-            }
-            if(!data.approved){
-                alert('Your registration is pending admin approval.');
-                signOut(auth);
-                return;
-            }
-        } else {
-            alert('Your account data is missing. Please contact the administrator.');
-            signOut(auth);
-            return;
-        }
-
-        dashboardDiv.classList.remove('hidden');
-        await loadFamilyEntries();
-        await renderTree();
-        await populateParentSelect();
-        if(isAdmin) adminPanel.classList.remove('hidden');
-        else adminPanel.classList.add('hidden');
-        if(isAdmin) loadPendingUsers();
-    } else {
-        currentUser = null;
-        isAdmin = false;
-        loginDiv.classList.remove('hidden');
-    }
-});
-
-// --- REGISTER FLOW ---
-registerBtn.addEventListener('click', ()=>{
-    modalOverlay.style.display='flex';
-    modal.innerHTML = `
-        <h3>Register</h3>
-        <input type="text" id="regName" placeholder="Full Name" required>
-        <input type="number" id="regYear" placeholder="Year of Birth" required>
-        <select id="regGender" required>
-            <option value="">Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-        </select>
-        <select id="regTamilBrahmin" required>
-            <option value="">Tamil Brahmin?</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-        </select>
-        <input type="text" id="regGothram" placeholder="Gothram" required>
-        <input type="text" id="regNative" placeholder="Native Place" required>
-        <input type="email" id="regEmail" placeholder="Email" required>
-        <input type="text" id="regPhone" placeholder="Phone Number" required>
-        <input type="password" id="regPassword" placeholder="Password" required>
-        <input type="password" id="regConfirmPassword" placeholder="Confirm Password" required>
-        <button id="submitRegister">Submit Registration</button>
-        <button id="cancelRegister">Cancel</button>
-        <div id="regMessage" style="color:red;margin-top:0.5rem;"></div>
-    `;
-    document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; modal.innerHTML=''; };
-
-    document.getElementById('submitRegister').onclick = async () => {
-        const name = document.getElementById('regName').value.trim();
-        const year = document.getElementById('regYear').value.trim();
-        const gender = document.getElementById('regGender').value;
-        const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
-        const gothram = document.getElementById('regGothram').value.trim();
-        const nativePlace = document.getElementById('regNative').value.trim();
-        const email = document.getElementById('regEmail').value.trim();
-        const phone = document.getElementById('regPhone').value.trim();
-        const password = document.getElementById('regPassword').value;
-        const confirmPassword = document.getElementById('regConfirmPassword').value;
-        const regMsg = document.getElementById('regMessage');
-
-        if (!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword) {
-            regMsg.innerText = "All fields are required.";
-            return;
-        }
-        if (password !== confirmPassword) {
-            regMsg.innerText = "Passwords do not match.";
-            return;
-        }
-
-        try {
-            pendingRegistrationData = { name, year, gender, tamilBrahmin, gothram, nativePlace, email, phone };
-            await createUserWithEmailAndPassword(auth, email, password);
-            modalOverlay.style.display = 'none';
-            modal.innerHTML = '';
-        } catch (e) {
-            regMsg.style.color = "red";
-            regMsg.innerText = e.message;
-        }
-    };
-});
-
-// --- LOGIN ---
-loginBtn.addEventListener('click', async ()=>{
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    if(!email || !password){ alert("Enter email & password"); return; }
-    try{
-        await signInWithEmailAndPassword(auth,email,password);
-    }catch(e){ alert(e.message); }
-});
-
-// --- LOGOUT ---
-logoutBtn.addEventListener('click', ()=>signOut(auth));
-
-// --- FAMILY FORM ---
-familyForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    try{
-        const parentId = parentIdSelect.value || null;
-        await addDoc(collection(db,'familyTree'),{
-            addedBy: currentUser.uid,
-            name: familyForm.name.value,
-            nickname: familyForm.nickname.value,
-            place: familyForm.place.value,
-            gothram: familyForm.gothram.value,
-            married: familyForm.married.value,
-            phone: familyForm.phone.value,
-            approved: false,
-            edits: [],
-            requests: [],
-            parentId: parentId
+    // If there is pending registration data (we just created the Auth user), create Firestore user doc
+    if(pendingRegistrationData) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          name: pendingRegistrationData.name,
+          year: pendingRegistrationData.year,
+          gender: pendingRegistrationData.gender,
+          tamilBrahmin: pendingRegistrationData.tamilBrahmin,
+          gothram: pendingRegistrationData.gothram,
+          nativePlace: pendingRegistrationData.nativePlace,
+          email: pendingRegistrationData.email,
+          phone: pendingRegistrationData.phone,
+          isAdmin: false,
+          blocked: false,
+          approved: false
         });
-        messageDiv.innerText = 'Family entry added, pending admin approval.';
-        familyForm.reset();
-        await loadFamilyEntries();
-        await renderTree();
-    }catch(e){alert(e.message);}
+        pendingRegistrationData = null;
+
+        const successMsg = document.createElement('div');
+        successMsg.className = 'reg-success-msg';
+        successMsg.innerText = 'Registration submitted! Awaiting admin approval. Signing you out...';
+        loginDiv.appendChild(successMsg);
+        setTimeout(() => {
+          successMsg.remove();
+          signOut(auth);
+        }, 3000);
+        return;
+      } catch(e) {
+        console.error("Error creating user doc for registration:", e);
+        alert("An error occurred while saving registration. Please contact admin.");
+        signOut(auth);
+        return;
+      }
+    }
+
+    // Load the user's Firestore document to obtain roles/status
+    try {
+      const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+      if(userDocSnap.exists()) {
+        const data = userDocSnap.data();
+        isAdmin = !!data.isAdmin;
+        console.log("User doc data:", data);
+        if(data.blocked) {
+          alert('You are blocked by admin.');
+          signOut(auth);
+          return;
+        }
+        if(!data.approved) {
+          alert('Your registration is pending admin approval.');
+          signOut(auth);
+          return;
+        }
+      } else {
+        // no user doc in Firestore
+        alert('Account record not found. Please contact the administrator.');
+        signOut(auth);
+        return;
+      }
+    } catch(e) {
+      console.error("Error loading user doc:", e);
+      alert("Error during login. See console for details.");
+      signOut(auth);
+      return;
+    }
+
+    // Show dashboard and load data
+    dashboardDiv.classList.remove('hidden');
+
+    // Always load family entries and render tree
+    await loadFamilyEntries();
+    await renderTree();
+    await populateParentSelect();
+
+    // If admin, show and populate admin sections (users + pending family entries)
+    if(isAdmin) {
+      adminPanel.classList.remove('hidden');
+      // first load immediately
+      await loadPendingUsers();
+      await loadPendingFamilyEntries();
+      // refresh pending lists every 15 seconds
+      adminRefreshIntervalId = setInterval(async () => {
+        try { await loadPendingUsers(); await loadPendingFamilyEntries(); } catch(e){ console.warn("Auto-refresh failed:", e); }
+      }, 15000);
+    } else {
+      adminPanel.classList.add('hidden');
+    }
+
+  } else {
+    // not signed in
+    currentUser = null;
+    isAdmin = false;
+    loginDiv.classList.remove('hidden');
+  }
 });
 
-// --- LOAD FAMILY ENTRIES ---
-async function loadFamilyEntries(queryText=''){
-    familyList.innerHTML='';
-    let q = collection(db,'familyTree');
-    if(queryText){
-        q = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText+'\uf8ff'));
+/* =========================
+   Register flow (modal)
+   ========================= */
+registerBtn.addEventListener('click', () => {
+  modalOverlay.style.display = 'flex';
+  modal.innerHTML = `
+    <h3>Register</h3>
+    <input type="text" id="regName" placeholder="Full Name" required>
+    <input type="text" id="regYear" placeholder="Year of Birth (e.g. 1977)" required>
+    <select id="regGender" required>
+      <option value="">Select Gender</option>
+      <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
+    </select>
+    <select id="regTamilBrahmin" required>
+      <option value="">Tamil Brahmin?</option><option value="Yes">Yes</option><option value="No">No</option>
+    </select>
+    <input type="text" id="regGothram" placeholder="Gothram" required>
+    <input type="text" id="regNative" placeholder="Native Place" required>
+    <input type="email" id="regEmail" placeholder="Email" required>
+    <input type="text" id="regPhone" placeholder="Phone Number" required>
+    <input type="password" id="regPassword" placeholder="Password" required>
+    <input type="password" id="regConfirmPassword" placeholder="Confirm Password" required>
+    <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+      <button id="submitRegister">Submit Registration</button>
+      <button id="cancelRegister" style="background:#777">Cancel</button>
+    </div>
+    <div id="regMessage" style="color:red;margin-top:0.5rem;"></div>
+  `;
+
+  document.getElementById('cancelRegister').onclick = () => { modalOverlay.style.display='none'; modal.innerHTML=''; };
+
+  document.getElementById('submitRegister').onclick = async () => {
+    const name = document.getElementById('regName').value.trim();
+    const year = document.getElementById('regYear').value.trim();
+    const gender = document.getElementById('regGender').value;
+    const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
+    const gothram = document.getElementById('regGothram').value.trim();
+    const nativePlace = document.getElementById('regNative').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const phone = document.getElementById('regPhone').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const confirmPassword = document.getElementById('regConfirmPassword').value;
+    const regMsg = document.getElementById('regMessage');
+
+    if (!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword) {
+      regMsg.innerText = "All fields are required.";
+      return;
     }
-    const snapshot = await getDocs(q);
+    if (password !== confirmPassword) {
+      regMsg.innerText = "Passwords do not match.";
+      return;
+    }
+
+    try {
+      // store temporarily — onAuthStateChanged will write Firestore doc
+      pendingRegistrationData = { name, year, gender, tamilBrahmin, gothram, nativePlace, email, phone };
+      await createUserWithEmailAndPassword(auth, email, password);
+      // close modal — onAuthStateChanged will handle the rest
+      modalOverlay.style.display = 'none';
+      modal.innerHTML = '';
+    } catch (e) {
+      console.error("Registration error:", e);
+      regMsg.style.color = "red";
+      regMsg.innerText = e.message || "Registration failed";
+    }
+  };
+});
+
+/* =========================
+   Login / Logout
+   ========================= */
+loginBtn.addEventListener('click', async () => {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if(!email || !password){ alert("Enter email & password"); return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch(e){
+    console.error("Login error:", e);
+    alert(e.message || "Login failed");
+  }
+});
+
+logoutBtn.addEventListener('click', () => signOut(auth));
+
+/* =========================
+   Family form submit
+   ========================= */
+familyForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if(!currentUser) { alert("Please login to add a member."); return; }
+  try {
+    const parentId = parentIdSelect.value || null;
+    const newDoc = await addDoc(collection(db,'familyTree'), {
+      addedBy: currentUser.uid,
+      name: familyForm.name.value,
+      nickname: familyForm.nickname.value || '',
+      place: familyForm.place.value || '',
+      gothram: familyForm.gothram.value || '',
+      married: familyForm.married.value || '',
+      phone: familyForm.phone.value || '',
+      approved: false,
+      edits: [],
+      requests: [],
+      parentId: parentId
+    });
+    messageDiv.innerText = 'Family entry added, pending admin approval.';
+    familyForm.reset();
+    await loadFamilyEntries();    // refresh list
+    await renderTree();          // re-render (will still show only approved nodes)
+    // refresh admin pending list so admin sees new pending family entry
+    if(isAdmin) await loadPendingFamilyEntries();
+  } catch(e) {
+    console.error("Add family entry error:", e);
+    alert(e.message || "Failed to add entry");
+  }
+});
+
+/* =========================
+   Load family entries (all)
+   ========================= */
+async function loadFamilyEntries(queryText='') {
+  familyList.innerHTML = '';
+  try {
+    let qRef;
+    if(queryText && queryText.trim() !== '') {
+      qRef = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText + '\uf8ff'));
+    } else {
+      qRef = collection(db,'familyTree');
+    }
+    const snapshot = await getDocs(qRef);
     familyMembersData = [];
-    snapshot.forEach(docSnap=>{
-        const data = docSnap.data();
-        data.id = docSnap.id;
-        familyMembersData.push(data);
-        const div = document.createElement('div');
-        div.classList.add('family-entry');
-        div.innerHTML = `
-            <div>
-                <strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
-                ${data.approved ? '<span class="approved">(Approved)</span>' : '<span class="pending">(Pending)</span>'}
-            </div>
-            ${isAdmin ? `<button onclick="approveFamilyEntry('${docSnap.id}')">Approve</button>` : ''}
-        `;
-        familyList.appendChild(div);
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      // normalize boolean fields if missing
+      if (typeof data.approved === 'undefined') data.approved = false;
+      if (typeof data.edits === 'undefined') data.edits = [];
+      familyMembersData.push(data);
+
+      const div = document.createElement('div');
+      div.classList.add('family-entry');
+      div.innerHTML = `
+        <div>
+          <strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
+          ${data.approved ? '<span class="approved"> (Approved)</span>' : '<span class="pending"> (Pending)</span>'}
+        </div>
+        ${isAdmin ? `<div><button class="small-btn" onclick="approveFamilyEntry('${docSnap.id}')">Approve</button></div>` : ''}
+      `;
+      familyList.appendChild(div);
     });
+    // After loading entries, refresh parent select
+    await populateParentSelect();
+  } catch(e) {
+    console.error("loadFamilyEntries error:", e);
+    familyList.innerText = "Error loading entries. See console.";
+  }
 }
 
-// --- POPULATE PARENT SELECT ---
+/* =========================
+   Populate parent select with approved members
+   ========================= */
 async function populateParentSelect() {
-    parentIdSelect.innerHTML = '<option value="">(No Parent)</option>';
+  parentIdSelect.innerHTML = '<option value="">(No Parent)</option>';
+  try {
     familyMembersData.filter(member => member.approved).forEach(member => {
-        const option = document.createElement('option');
-        option.value = member.id;
-        option.textContent = member.name;
-        parentIdSelect.appendChild(option);
+      const option = document.createElement('option');
+      option.value = member.id;
+      option.textContent = member.name;
+      parentIdSelect.appendChild(option);
     });
+  } catch(e) {
+    console.error("populateParentSelect error:", e);
+  }
 }
 
-// --- ADMIN APPROVE FAMILY ---
+/* =========================
+   Approve family entry (admin)
+   ========================= */
 window.approveFamilyEntry = async (docId) => {
+  try {
+    if(!confirm("Approve this family entry?")) return;
     await updateDoc(doc(db, 'familyTree', docId), { approved: true });
     alert('Entry approved!');
     await loadFamilyEntries();
     await renderTree();
-}
+    if(isAdmin) await loadPendingFamilyEntries();
+  } catch(e) {
+    console.error("approveFamilyEntry error:", e);
+    alert("Failed to approve. See console.");
+  }
+};
 
-// --- SEARCH ---
-searchBtn.addEventListener('click', ()=>loadFamilyEntries(searchInput.value));
+/* =========================
+   Search
+   ========================= */
+searchBtn.addEventListener('click', () => loadFamilyEntries(searchInput.value.trim()));
 
-// --- RENDER TREE ---
+/* =========================
+   Render Treant family tree
+   ========================= */
 async function renderTree(){
-    treeContainer.innerHTML='';
-    const approvedNodes = familyMembersData.filter(member => member.approved);
+  try {
+    treeContainer.innerHTML = '';
+    const approvedNodes = familyMembersData.filter(m => m.approved);
 
-    if (approvedNodes.length === 0) {
-        treeContainer.innerText = "No approved members yet.";
-        return;
+    if(approvedNodes.length === 0) {
+      treeContainer.innerText = "No approved members yet.";
+      return;
     }
 
     const nodeMap = {};
     const roots = [];
     approvedNodes.forEach(data => {
-        const node = { text: { name: data.name }, children: [], id: data.id, full: data };
-        nodeMap[data.id] = node;
+      const node = { text: { name: data.name }, children: [], id: data.id, full: data };
+      nodeMap[data.id] = node;
     });
 
     Object.values(nodeMap).forEach(node => {
-        const parentId = node.full.parentId;
-        if (parentId && nodeMap[parentId]) nodeMap[parentId].children.push(node);
-        else roots.push(node);
+      const parentId = node.full.parentId;
+      if (parentId && nodeMap[parentId]) nodeMap[parentId].children.push(node);
+      else roots.push(node);
     });
 
-    if (roots.length > 1) {
-        const virtualRoot = { text: { name: "Family Trees" }, children: roots };
-        new Treant({ chart: { container: "#treeContainer" }, nodeStructure: virtualRoot });
-    } else if (roots.length === 1) {
-        new Treant({ chart: { container: "#treeContainer" }, nodeStructure: roots[0] });
+    // Build tree config
+    if(roots.length > 1) {
+      const virtualRoot = { text: { name: "Family Trees" }, children: roots };
+      new Treant({ chart: { container: "#treeContainer" }, nodeStructure: virtualRoot });
+    } else if(roots.length === 1) {
+      new Treant({ chart: { container: "#treeContainer" }, nodeStructure: roots[0] });
     } else {
-        treeContainer.innerText = "No approved members yet.";
+      treeContainer.innerText = "No approved members yet.";
     }
+  } catch(e) {
+    console.error("renderTree error:", e);
+    treeContainer.innerText = "Error rendering tree. See console.";
+  }
 }
 
-// --- ADMIN PENDING USERS ---
+/* =========================
+   ADMIN: Load pending users
+   ========================= */
 async function loadPendingUsers(){
-    let userListDiv = document.getElementById('pendingUsers');
-    if(!userListDiv){
-        userListDiv = document.createElement('div');
-        userListDiv.id='pendingUsers';
-        adminPanel.appendChild(userListDiv);
-    }
-    const q = query(collection(db,'users'), where('approved','==',false));
+  try {
+    console.log("loadPendingUsers(): querying for users with approved==false");
+    const q = query(collection(db,'users'), where('approved','==', false));
     const snapshot = await getDocs(q);
-    userListDiv.innerHTML='<h3>Pending Users</h3>';
-    snapshot.forEach(docSnap=>{
-        const data = docSnap.data();
-        const userDiv = document.createElement('div');
-        userDiv.innerHTML = `${data.name} (${data.email}) <button onclick="approveUser('${docSnap.id}')">Approve</button> <button onclick="blockUser('${docSnap.id}')">Block</button>`;
-        userListDiv.appendChild(userDiv);
+    console.log("Pending users snapshot size:", snapshot.size);
+
+    pendingUsersDiv.innerHTML = '<h4>Pending Users</h4>';
+
+    if(snapshot.empty){
+      pendingUsersDiv.innerHTML += '<p class="muted">No pending users</p>';
+      return;
+    }
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const uid = docSnap.id;
+      const row = document.createElement('div');
+      row.className = 'pending-item';
+      row.innerHTML = `
+        <div style="flex:1;">
+          <strong>${data.name || '(no name)'}</strong><br/>
+          <span class="muted">${data.email || ''} ${data.phone ? '| ' + data.phone : ''}</span>
+        </div>
+        <div style="display:flex; gap:0.4rem;">
+          <button class="small-btn" onclick="approveUser('${uid}')">Approve</button>
+          <button class="small-btn" onclick="blockUser('${uid}')">Block</button>
+        </div>
+      `;
+      pendingUsersDiv.appendChild(row);
     });
+  } catch(e) {
+    console.error("loadPendingUsers error:", e);
+    pendingUsersDiv.innerHTML = '<p class="muted">Error loading pending users. See console.</p>';
+  }
 }
 
-window.approveUser = async (uid)=>{ await updateDoc(doc(db,'users',uid),{approved:true}); loadPendingUsers(); alert('User approved'); }
-window.blockUser = async (uid)=>{ await updateDoc(doc(db,'users',uid),{blocked:true}); loadPendingUsers(); alert('User blocked'); }
+/* Approve / block user (admin) */
+window.approveUser = async (uid) => {
+  try {
+    if(!confirm("Approve this user?")) return;
+    await updateDoc(doc(db,'users',uid), { approved: true, blocked: false });
+    alert('User approved');
+    await loadPendingUsers();
+  } catch(e) {
+    console.error("approveUser error:", e);
+    alert('Failed to approve user. See console.');
+  }
+};
 
+window.blockUser = async (uid) => {
+  try {
+    if(!confirm("Block this user?")) return;
+    await updateDoc(doc(db,'users',uid), { blocked: true });
+    alert('User blocked');
+    await loadPendingUsers();
+  } catch(e) {
+    console.error("blockUser error:", e);
+    alert('Failed to block user. See console.');
+  }
+};
+
+/* =========================
+   ADMIN: Load pending family entries
+   ========================= */
+async function loadPendingFamilyEntries() {
+  try {
+    console.log("loadPendingFamilyEntries(): querying familyTree where approved==false");
+    const q = query(collection(db, 'familyTree'), where('approved','==', false));
+    const snapshot = await getDocs(q);
+    pendingFamilyEntriesDiv.innerHTML = '<h4>Pending Family Entries</h4>';
+
+    if(snapshot.empty){
+      pendingFamilyEntriesDiv.innerHTML += '<p class="muted">No pending family entries</p>';
+      return;
+    }
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const id = docSnap.id;
+      const row = document.createElement('div');
+      row.className = 'pending-item';
+      row.innerHTML = `
+        <div style="flex:1;">
+          <strong>${data.name || '(no name)'}</strong> &nbsp; ${data.place ? '| ' + data.place : ''}
+          <div class="muted">${data.gothram || ''} &nbsp; Added by: ${data.addedBy || 'unknown'}</div>
+        </div>
+        <div style="display:flex; gap:0.4rem;">
+          <button class="small-btn" onclick="approveFamilyEntry('${id}')">Approve</button>
+        </div>
+      `;
+      pendingFamilyEntriesDiv.appendChild(row);
+    });
+  } catch(e) {
+    console.error("loadPendingFamilyEntries error:", e);
+    pendingFamilyEntriesDiv.innerHTML = '<p class="muted">Error loading pending family entries. See console.</p>';
+  }
+}
+
+/* =========================
+   End of module script
+   ========================= */
 </script>
 </body>
 </html>
