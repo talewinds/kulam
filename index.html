@@ -93,7 +93,7 @@ onAuthStateChanged(auth, async (user) => {
     renderTree();
     if(isAdmin) adminPanel.classList.remove('hidden');
     else adminPanel.classList.add('hidden');
-    if(isAdmin) loadPendingUsers(); // load pending users for admin
+    if(isAdmin) loadPendingUsers();
   } else {
     currentUser = null;
     isAdmin = false;
@@ -130,7 +130,7 @@ registerBtn.addEventListener('click', ()=>{
     <button id="cancelRegister">Cancel</button>
     <div id="regMessage" style="color:red;margin-top:0.5rem;"></div>
   `;
-  document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; };
+  document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; modal.innerHTML=''; };
 
   document.getElementById('submitRegister').onclick = async ()=>{
     const name = document.getElementById('regName').value.trim();
@@ -170,10 +170,12 @@ registerBtn.addEventListener('click', ()=>{
         blocked:false,
         approved:false
       });
-      regMsg.style.color = "green";
-      regMsg.innerText = "Registration submitted. Wait for admin approval.";
-      // Close modal immediately after submission
-      setTimeout(()=>{ modalOverlay.style.display = 'none'; }, 500);
+
+      // Close modal immediately
+      modalOverlay.style.display = 'none';
+      modal.innerHTML = ''; // clear modal content
+      alert("Registration submitted. Wait for admin approval.");
+
     } catch(e){
       regMsg.style.color="red";
       regMsg.innerText = e.message;
