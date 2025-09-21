@@ -5,30 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Family Tree App</title>
 <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
-    header { background:#800000; color:white; padding:1rem; text-align:center;}
-    .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
-    input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
-    button { background:#800000; color:white; border:none; cursor:pointer;}
-    button:hover { background:#a00000; }
-    .hidden { display:none;}
-    .family-entry { padding:1rem; border-bottom:1px solid #ccc; display: flex; justify-content: space-between; align-items: center;}
-    .family-entry button { width:auto; margin-left:0.5rem;}
-    .approved { color:green; }
-    .pending { color:orange; }
-    .blocked { color:red; }
-    #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
-    #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
-    #modal h3 { margin-top:0; }
-    #message { margin:0.5rem 0; color:green; }
-    #treeContainer { margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
-    #treeContainer .node { font-size: 14px; }
-    #treeContainer .node:hover { cursor: pointer; }
-    .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
+    header { background:#800000; color:white; padding:1rem; text-align:center;}
+    .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+    input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
+    button { background:#800000; color:white; border:none; cursor:pointer;}
+    button:hover { background:#a00000; }
+    .hidden { display:none;}
+    .family-entry { padding:1rem; border-bottom:1px solid #ccc; display: flex; justify-content: space-between; align-items: center;}
+    .family-entry button { width:auto; margin-left:0.5rem;}
+    .approved { color:green; }
+    .pending { color:orange; }
+    .blocked { color:red; }
+    #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
+    #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
+    #modal h3 { margin-top:0; }
+    #message { margin:0.5rem 0; color:green; }
+    #treeContainer { min-height:400px; margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
+    #treeContainer .node { font-size: 14px; }
+    #treeContainer .node:hover { cursor: pointer; }
+    .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
 </style>
 <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
 <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
 <script src="https://fperucic.github.io/treant-js/Treant.js"></script>
+</head>
+<body>
+<header><h1>Family Tree Portal</h1></header>
+
+<div class="container" id="loginDiv">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+    <button id="registerBtn">Register</button>
+</div>
+
+<div class="container hidden" id="dashboardDiv">
+    <button id="logoutBtn">Logout</button>
+    <h2>Dashboard</h2>
+    <h3>Add Family Member</h3>
+    <form id="familyForm">
+        <input type="text" name="name" placeholder="Name" required>
+        <input type="text" name="nickname" placeholder="Nickname">
+        <input type="text" name="place" placeholder="Place">
+        <input type="text" name="gothram" placeholder="Gothram">
+        <select name="married">
+            <option value="">Marital Status</option>
+            <option value="Married">Married</option>
+            <option value="Unmarried">Unmarried</option>
+        </select>
+        <input type="text" name="phone" placeholder="Phone Number">
+        <label for="parentIdSelect" style="display:block; margin-top:1rem;">Select Parent:</label>
+        <select id="parentIdSelect" name="parentId">
+            <option value="">(No Parent)</option>
+        </select>
+        <button type="submit">Add</button>
+    </form>
+    <div id="message"></div>
+
+    <h3>Search Family</h3>
+    <input type="text" id="searchInput" placeholder="Enter Name to search">
+    <button id="searchBtn">Search</button>
+
+    <h3>Family Tree Entries</h3>
+    <div id="familyList"></div>
+
+    <h3>Family Tree Diagram</h3>
+    <div id="treeContainer"></div>
+
+    <div id="adminPanel" class="hidden">
+        <h3>Admin Panel</h3>
+        <p>Approve pending entries, edits, access requests, block/unblock members here.</p>
+    </div>
+</div>
+
+<div id="modalOverlay">
+    <div id="modal"></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
@@ -36,24 +90,21 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// Your Firebase Config (re-using your provided config)
 const firebaseConfig = {
-    apiKey: "AIzaSyDiE8jLUA3lA1mTfBhDH_KQQ5J_sLbGQk8",
-    authDomain: "kulam-family-tree.firebaseapp.com",
-    projectId: "kulam-family-tree",
-    storageBucket: "kulam-family-tree.firebasestorage.app",
-    messagingSenderId: "219860158687",
-    appId: "1:219860158687:web:a2eefd26049298fcdb016a",
-    measurementId: "G-74J5ZKDEDX"
+    apiKey: "AIzaSyDiE8jLUA3lA1mTfBhDH_KQQ5J_sLbGQk8",
+    authDomain: "kulam-family-tree.firebaseapp.com",
+    projectId: "kulam-family-tree",
+    storageBucket: "kulam-family-tree.appspot.com",
+    messagingSenderId: "219860158687",
+    appId: "1:219860158687:web:a2eefd26049298fcdb016a",
+    measurementId: "G-74J5ZKDEDX"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// DOM Elements
 const loginDiv = document.getElementById('loginDiv');
 const dashboardDiv = document.getElementById('dashboardDiv');
 const emailInput = document.getElementById('email');
@@ -75,20 +126,17 @@ const parentIdSelect = document.getElementById('parentIdSelect');
 let currentUser = null;
 let isAdmin = false;
 let familyMembersData = [];
-let pendingRegistrationData = null; // Store registration data temporarily
+let pendingRegistrationData = null;
 
-// --- AUTH STATE ---
 onAuthStateChanged(auth, async (user) => {
-    // Hide all main sections first to avoid the mixed-UI issue
     loginDiv.classList.add('hidden');
     dashboardDiv.classList.add('hidden');
 
     if(user){
         currentUser = user;
-        // Check if there's a pending registration to complete
+
         if(pendingRegistrationData) {
             try {
-                // Now that the user is fully authenticated, create the user document
                 await setDoc(doc(db, 'users', user.uid), {
                     uid: user.uid,
                     name: pendingRegistrationData.name,
@@ -103,10 +151,8 @@ onAuthStateChanged(auth, async (user) => {
                     blocked: false,
                     approved: false
                 });
-                console.log("User document created successfully!");
-                pendingRegistrationData = null; // Clear the pending data
+                pendingRegistrationData = null;
 
-                // Show success message and sign out immediately
                 const successMsg = document.createElement('div');
                 successMsg.className = 'reg-success-msg';
                 successMsg.innerText = 'Registration submitted! Awaiting admin approval. Signing you out...';
@@ -114,13 +160,13 @@ onAuthStateChanged(auth, async (user) => {
                 setTimeout(() => {
                     successMsg.remove();
                     signOut(auth);
-                }, 3000); // Sign out after 3 seconds
+                }, 3000);
                 return;
 
             } catch(e) {
                 console.error("Error creating user document:", e);
                 alert("An error occurred during registration. Please try again.");
-                signOut(auth); // Sign out the user to prevent inconsistent state
+                signOut(auth);
                 return;
             }
         }
@@ -140,13 +186,11 @@ onAuthStateChanged(auth, async (user) => {
                 return;
             }
         } else {
-            // User exists in Auth but not in Firestore. This handles the case where setDoc failed previously.
             alert('Your account data is missing. Please contact the administrator.');
             signOut(auth);
             return;
         }
 
-        // If user is approved and not blocked, proceed to dashboard
         dashboardDiv.classList.remove('hidden');
         await loadFamilyEntries();
         await renderTree();
@@ -163,81 +207,76 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- REGISTER FLOW ---
 registerBtn.addEventListener('click', ()=>{
-    modalOverlay.style.display='flex';
-    modal.innerHTML = `
-        <h3>Register</h3>
-        <input type="text" id="regName" placeholder="Full Name" required>
-        <input type="number" id="regYear" placeholder="Year of Birth" required>
-        <select id="regGender" required>
-            <option value="">Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-        </select>
-        <select id="regTamilBrahmin" required>
-            <option value="">Tamil Brahmin?</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-        </select>
-        <input type="text" id="regGothram" placeholder="Gothram" required>
-        <input type="text" id="regNative" placeholder="Native Place" required>
-        <input type="email" id="regEmail" placeholder="Email" required>
-        <input type="text" id="regPhone" placeholder="Phone Number" required>
-        <input type="password" id="regPassword" placeholder="Password" required>
-        <input type="password" id="regConfirmPassword" placeholder="Confirm Password" required>
-        <button id="submitRegister">Submit Registration</button>
-        <button id="cancelRegister">Cancel</button>
-        <div id="regMessage" style="color:red;margin-top:0.5rem;"></div>
-    `;
-    document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; modal.innerHTML=''; };
+    modalOverlay.style.display='flex';
+    modal.innerHTML = `
+        <h3>Register</h3>
+        <input type="text" id="regName" placeholder="Full Name" required>
+        <input type="number" id="regYear" placeholder="Year of Birth" required>
+        <select id="regGender" required>
+            <option value="">Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+        </select>
+        <select id="regTamilBrahmin" required>
+            <option value="">Tamil Brahmin?</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+        <input type="text" id="regGothram" placeholder="Gothram" required>
+        <input type="text" id="regNative" placeholder="Native Place" required>
+        <input type="email" id="regEmail" placeholder="Email" required>
+        <input type="text" id="regPhone" placeholder="Phone Number" required>
+        <input type="password" id="regPassword" placeholder="Password" required>
+        <input type="password" id="regConfirmPassword" placeholder="Confirm Password" required>
+        <button id="submitRegister">Submit Registration</button>
+        <button id="cancelRegister">Cancel</button>
+        <div id="regMessage" style="color:red;margin-top:0.5rem;"></div>
+    `;
+    document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; modal.innerHTML=''; };
 
-    document.getElementById('submitRegister').onclick = async () => {
-        const name = document.getElementById('regName').value.trim();
-        const year = document.getElementById('regYear').value.trim();
-        const gender = document.getElementById('regGender').value;
-        const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
-        const gothram = document.getElementById('regGothram').value.trim();
-        const nativePlace = document.getElementById('regNative').value.trim();
-        const email = document.getElementById('regEmail').value.trim();
-        const phone = document.getElementById('regPhone').value.trim();
-        const password = document.getElementById('regPassword').value;
-        const confirmPassword = document.getElementById('regConfirmPassword').value;
-        const regMsg = document.getElementById('regMessage');
+    document.getElementById('submitRegister').onclick = async () => {
+        const name = document.getElementById('regName').value.trim();
+        const year = document.getElementById('regYear').value.trim();
+        const gender = document.getElementById('regGender').value;
+        const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
+        const gothram = document.getElementById('regGothram').value.trim();
+        const nativePlace = document.getElementById('regNative').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const phone = document.getElementById('regPhone').value.trim();
+        const password = document.getElementById('regPassword').value;
+        const confirmPassword = document.getElementById('regConfirmPassword').value;
+        const regMsg = document.getElementById('regMessage');
 
-        if (!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword) {
-            regMsg.innerText = "All fields are required.";
-            return;
-        }
-        if (password !== confirmPassword) {
-            regMsg.innerText = "Passwords do not match.";
-            return;
-        }
+        if (!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword) {
+            regMsg.innerText = "All fields are required.";
+            return;
+        }
+        if (password !== confirmPassword) {
+            regMsg.innerText = "Passwords do not match.";
+            return;
+        }
 
-        try {
-            // Temporarily store the data
-            pendingRegistrationData = {
-                name, year, gender, tamilBrahmin, gothram, nativePlace, email, phone
-            };
-            // Create user in Auth. The onAuthStateChanged listener will handle the Firestore part.
-            await createUserWithEmailAndPassword(auth, email, password);
-            // The modal will close and a message will be shown via onAuthStateChanged
-            modalOverlay.style.display = 'none';
-            modal.innerHTML = '';
-        } catch (e) {
-            regMsg.style.color = "red";
-            regMsg.innerText = e.message;
-        }
-    };
+        try {
+            pendingRegistrationData = { name, year, gender, tamilBrahmin, gothram, nativePlace, email, phone };
+            await createUserWithEmailAndPassword(auth, email, password);
+            modalOverlay.style.display = 'none';
+            modal.innerHTML = '';
+        } catch (e) {
+            regMsg.style.color = "red";
+            regMsg.innerText = e.message;
+        }
+    };
 });
 
 // --- LOGIN ---
 loginBtn.addEventListener('click', async ()=>{
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    if(!email || !password){ alert("Enter email & password"); return; }
-    try{
-        await signInWithEmailAndPassword(auth,email,password);
-    }catch(e){ alert(e.message); }
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+    if(!email || !password){ alert("Enter email & password"); return; }
+    try{
+        await signInWithEmailAndPassword(auth,email,password);
+    }catch(e){ alert(e.message); }
 });
 
 // --- LOGOUT ---
@@ -245,203 +284,132 @@ logoutBtn.addEventListener('click', ()=>signOut(auth));
 
 // --- FAMILY FORM ---
 familyForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    try{
-        const parentId = parentIdSelect.value || null;
-        await addDoc(collection(db,'familyTree'),{
-            addedBy: currentUser.uid,
-            name: familyForm.name.value,
-            nickname: familyForm.nickname.value,
-            place: familyForm.place.value,
-            gothram: familyForm.gothram.value,
-            married: familyForm.married.value,
-            phone: familyForm.phone.value,
-            approved: false,
-            edits: [],
-            requests: [],
-            parentId: parentId
-        });
-        messageDiv.innerText = 'Family entry added, pending admin approval.';
-        familyForm.reset();
-        await loadFamilyEntries();
-        await renderTree();
-    }catch(e){alert(e.message);}
+    e.preventDefault();
+    try{
+        const parentId = parentIdSelect.value || null;
+        await addDoc(collection(db,'familyTree'),{
+            addedBy: currentUser.uid,
+            name: familyForm.name.value,
+            nickname: familyForm.nickname.value,
+            place: familyForm.place.value,
+            gothram: familyForm.gothram.value,
+            married: familyForm.married.value,
+            phone: familyForm.phone.value,
+            approved: false,
+            edits: [],
+            requests: [],
+            parentId: parentId
+        });
+        messageDiv.innerText = 'Family entry added, pending admin approval.';
+        familyForm.reset();
+        await loadFamilyEntries();
+        await renderTree();
+    }catch(e){alert(e.message);}
 });
 
-// --- LOAD FAMILY ENTRIES & POPULATE PARENT SELECT ---
+// --- LOAD FAMILY ENTRIES ---
 async function loadFamilyEntries(queryText=''){
-    familyList.innerHTML='';
-    let q = collection(db,'familyTree');
-    if(queryText){
-        q = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText+'\uf8ff'));
-    }
-    const snapshot = await getDocs(q);
-    familyMembersData = [];
-    snapshot.forEach(docSnap=>{
-        const data = docSnap.data();
-        data.id = docSnap.id;
-        familyMembersData.push(data);
-        const div = document.createElement('div');
-        div.classList.add('family-entry');
-        div.innerHTML = `
-            <div>
-                <strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
-                ${data.approved ? '<span class="approved">(Approved)</span>' : '<span class="pending">(Pending)</span>'}
-            </div>
-            ${isAdmin ? `<button onclick="approveFamilyEntry('${docSnap.id}')">Approve</button>` : ''}
-        `;
-        familyList.appendChild(div);
-    });
+    familyList.innerHTML='';
+    let q = collection(db,'familyTree');
+    if(queryText){
+        q = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText+'\uf8ff'));
+    }
+    const snapshot = await getDocs(q);
+    familyMembersData = [];
+    snapshot.forEach(docSnap=>{
+        const data = docSnap.data();
+        data.id = docSnap.id;
+        familyMembersData.push(data);
+        const div = document.createElement('div');
+        div.classList.add('family-entry');
+        div.innerHTML = `
+            <div>
+                <strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
+                ${data.approved ? '<span class="approved">(Approved)</span>' : '<span class="pending">(Pending)</span>'}
+            </div>
+            ${isAdmin ? `<button onclick="approveFamilyEntry('${docSnap.id}')">Approve</button>` : ''}
+        `;
+        familyList.appendChild(div);
+    });
 }
 
-// --- POPULATE PARENT SELECT DROPDOWN ---
+// --- POPULATE PARENT SELECT ---
 async function populateParentSelect() {
-    parentIdSelect.innerHTML = '<option value="">(No Parent)</option>';
-    familyMembersData.filter(member => member.approved).forEach(member => {
-        const option = document.createElement('option');
-        option.value = member.id;
-        option.textContent = member.name;
-        parentIdSelect.appendChild(option);
-    });
+    parentIdSelect.innerHTML = '<option value="">(No Parent)</option>';
+    familyMembersData.filter(member => member.approved).forEach(member => {
+        const option = document.createElement('option');
+        option.value = member.id;
+        option.textContent = member.name;
+        parentIdSelect.appendChild(option);
+    });
 }
 
-// Global function for admin to approve family entries
+// --- ADMIN APPROVE FAMILY ---
 window.approveFamilyEntry = async (docId) => {
-    await updateDoc(doc(db, 'familyTree', docId), { approved: true });
-    alert('Entry approved!');
-    await loadFamilyEntries();
-    await renderTree();
+    await updateDoc(doc(db, 'familyTree', docId), { approved: true });
+    alert('Entry approved!');
+    await loadFamilyEntries();
+    await renderTree();
 }
 
 // --- SEARCH ---
 searchBtn.addEventListener('click', ()=>loadFamilyEntries(searchInput.value));
 
-// --- TREE ---
+// --- RENDER TREE ---
 async function renderTree(){
-    treeContainer.innerHTML='';
-    const approvedNodes = familyMembersData.filter(member => member.approved);
+    treeContainer.innerHTML='';
+    const approvedNodes = familyMembersData.filter(member => member.approved);
 
-    if (approvedNodes.length === 0) {
-        treeContainer.innerText = "No approved members yet.";
-        return;
-    }
+    if (approvedNodes.length === 0) {
+        treeContainer.innerText = "No approved members yet.";
+        return;
+    }
 
-    const nodeMap = {};
-    const roots = [];
-    approvedNodes.forEach(data => {
-        const node = {
-            text: { name: data.name },
-            children: [],
-            id: data.id,
-            full: data
-        };
-        nodeMap[data.id] = node;
-    });
+    const nodeMap = {};
+    const roots = [];
+    approvedNodes.forEach(data => {
+        const node = { text: { name: data.name }, children: [], id: data.id, full: data };
+        nodeMap[data.id] = node;
+    });
 
-    Object.values(nodeMap).forEach(node => {
-        const parentId = node.full.parentId;
-        if (parentId && nodeMap[parentId]) {
-            nodeMap[parentId].children.push(node);
-        } else {
-            roots.push(node);
-        }
-    });
+    Object.values(nodeMap).forEach(node => {
+        const parentId = node.full.parentId;
+        if (parentId && nodeMap[parentId]) nodeMap[parentId].children.push(node);
+        else roots.push(node);
+    });
 
-    if (roots.length > 1) {
-        const virtualRoot = {
-            text: { name: "Family Trees" },
-            children: roots
-        };
-        const treeConfig = { chart: { container: "#treeContainer" }, nodeStructure: virtualRoot };
-        new Treant(treeConfig);
-    } else if (roots.length === 1) {
-        const treeConfig = { chart: { container: "#treeContainer" }, nodeStructure: roots[0] };
-        new Treant(treeConfig);
-    } else {
-        treeContainer.innerText = "No approved members yet.";
-    }
+    if (roots.length > 1) {
+        const virtualRoot = { text: { name: "Family Trees" }, children: roots };
+        new Treant({ chart: { container: "#treeContainer" }, nodeStructure: virtualRoot });
+    } else if (roots.length === 1) {
+        new Treant({ chart: { container: "#treeContainer" }, nodeStructure: roots[0] });
+    } else {
+        treeContainer.innerText = "No approved members yet.";
+    }
 }
 
 // --- ADMIN PENDING USERS ---
 async function loadPendingUsers(){
-    const userListDiv = document.getElementById('pendingUsers');
-    if(!userListDiv){
-        const div = document.createElement('div');
-        div.id='pendingUsers';
-        div.innerHTML='<h3>Pending Users</h3>';
-        adminPanel.appendChild(div);
-    }
-    const q = query(collection(db,'users'), where('approved','==',false));
-    const snapshot = await getDocs(q);
-    const div = document.getElementById('pendingUsers');
-    div.innerHTML='<h3>Pending Users</h3>';
-    snapshot.forEach(docSnap=>{
-        const data = docSnap.data();
-        const userDiv = document.createElement('div');
-        userDiv.style.padding='0.5rem';
-        userDiv.style.borderBottom='1px solid #ccc';
-        userDiv.innerHTML = `${data.name} | ${data.email} | ${data.phone} <button>Approve</button>`;
-        userDiv.querySelector('button').onclick=async()=>{
-            await updateDoc(doc(db,'users',docSnap.id),{approved:true});
-            loadPendingUsers();
-        };
-        div.appendChild(userDiv);
-    });
+    let userListDiv = document.getElementById('pendingUsers');
+    if(!userListDiv){
+        userListDiv = document.createElement('div');
+        userListDiv.id='pendingUsers';
+        adminPanel.appendChild(userListDiv);
+    }
+    const q = query(collection(db,'users'), where('approved','==',false));
+    const snapshot = await getDocs(q);
+    userListDiv.innerHTML='<h3>Pending Users</h3>';
+    snapshot.forEach(docSnap=>{
+        const data = docSnap.data();
+        const userDiv = document.createElement('div');
+        userDiv.innerHTML = `${data.name} (${data.email}) <button onclick="approveUser('${docSnap.id}')">Approve</button> <button onclick="blockUser('${docSnap.id}')">Block</button>`;
+        userListDiv.appendChild(userDiv);
+    });
 }
+
+window.approveUser = async (uid)=>{ await updateDoc(doc(db,'users',uid),{approved:true}); loadPendingUsers(); alert('User approved'); }
+window.blockUser = async (uid)=>{ await updateDoc(doc(db,'users',uid),{blocked:true}); loadPendingUsers(); alert('User blocked'); }
+
 </script>
-</head>
-<body>
-<header><h1>Family Tree Portal</h1></header>
-
-<div class="container" id="loginDiv">
-    <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button id="loginBtn">Login</button>
-    <button id="registerBtn">Register</button>
-</div>
-
-<div class="container hidden" id="dashboardDiv">
-    <button id="logoutBtn">Logout</button>
-    <h2>Dashboard</h2>
-    <h3>Add Family Member</h3>
-    <form id="familyForm">
-        <input type="text" name="name" placeholder="Name" required>
-        <input type="text" name="nickname" placeholder="Nickname">
-        <input type="text" name="place" placeholder="Place">
-        <input type="text" name="gothram" placeholder="Gothram">
-        <select name="married">
-            <option value="">Marital Status</option>
-            <option value="Married">Married</option>
-            <option value="Unmarried">Unmarried</option>
-        </select>
-        <input type="text" name="phone" placeholder="Phone Number">
-        <label for="parentIdSelect" style="display:block; margin-top:1rem;">Select Parent:</label>
-        <select id="parentIdSelect" name="parentId">
-            <option value="">(No Parent)</option>
-        </select>
-        <button type="submit">Add</button>
-    </form>
-    <div id="message"></div>
-
-    <h3>Search Family</h3>
-    <input type="text" id="searchInput" placeholder="Enter Name to search">
-    <button id="searchBtn">Search</button>
-
-    <h3>Family Tree Entries</h3>
-    <div id="familyList"></div>
-
-    <h3>Family Tree Diagram</h3>
-    <div id="treeContainer"></div>
-
-    <div id="adminPanel" class="hidden">
-        <h3>Admin Panel</h3>
-        <p>Approve pending entries, edits, access requests, block/unblock members here.</p>
-    </div>
-</div>
-
-<div id="modalOverlay">
-    <div id="modal"></div>
-</div>
 </body>
 </html>
