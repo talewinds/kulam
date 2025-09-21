@@ -29,6 +29,20 @@
   .pending-item { padding:0.5rem 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:0.5rem; }
   .small-btn { padding:0.25rem 0.5rem; font-size:0.9rem; }
   .muted { color:#666; font-size:0.9rem; }
+  .pending-user {
+    border: 1px solid #ccc;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+.pending-user button {
+    margin-right: 5px;
+    margin-top: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
 </style>
 
 <!-- Treant CSS/JS (diagram library) -->
@@ -538,40 +552,43 @@ async function renderTree(){
    ADMIN: Load pending users
    ========================= */
 async function loadPendingUsers(){
-  try {
-    console.log("loadPendingUsers(): querying for users with approved==false");
-    const q = query(collection(db,'users'), where('approved','==', false));
-    const snapshot = await getDocs(q);
-    console.log("Pending users snapshot size:", snapshot.size);
-
-    pendingUsersDiv.innerHTML = '<h4>Pending Users</h4>';
-
-    if(snapshot.empty){
-      pendingUsersDiv.innerHTML += '<p class="muted">No pending users</p>';
-      return;
+    let container = document.getElementById('pendingUsers');
+    if(!container){
+        container = document.createElement('div');
+        container.id = 'pendingUsers';
+        adminPanel.appendChild(container);
     }
+    container.innerHTML = '<h3>Pending Users</h3>';
 
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const uid = docSnap.id;
-      const row = document.createElement('div');
-      row.className = 'pending-item';
-      row.innerHTML = `
-        <div style="flex:1;">
-          <strong>${data.name || '(no name)'}</strong><br/>
-          <span class="muted">${data.email || ''} ${data.phone ? '| ' + data.phone : ''}</span>
-        </div>
-        <div style="display:flex; gap:0.4rem;">
-          <button class="small-btn" onclick="approveUser('${uid}')">Approve</button>
-          <button class="small-btn" onclick="blockUser('${uid}')">Block</button>
-        </div>
-      `;
-      pendingUsersDiv.appendChild(row);
-    });
-  } catch(e) {
-    console.error("loadPendingUsers error:", e);
-    pendingUsersDiv.innerHTML = '<p class="muted">Error loading pending users. See console.</p>';
-  }
+    try {
+        const q = query(collection(db,'users'), where('approved','==',false));
+        const snapshot = await getDocs(q);
+
+        snapshot.forEach(docSnap => {
+            const u = docSnap.data();
+            const div = document.createElement('div');
+            div.classList.add('pending-user');
+
+            let html = '';
+            // Dynamically show only fields with values
+            ['name','email','phone','gender','gothram','nativePlace','year','tamilBrahmin'].forEach(field => {
+                if(u[field]) html += `<p>${u[field]}</p>`;
+            });
+
+            // Include approve/block buttons
+            html += `<button onclick="approveUser('${docSnap.id}')">✅ Approve</button>
+                     <button onclick="blockUser('${docSnap.id}')">🚫 Block</button>`;
+
+            div.innerHTML = html;
+            container.appendChild(div);
+        });
+
+        if(snapshot.empty) container.innerHTML += '<p>No pending users</p>';
+
+    } catch (e) {
+        console.error('loadPendingUsers error:', e);
+        container.innerHTML += '<p style="color:red;">Error loading pending users. See console.</p>';
+    }
 }
 
 /* Approve / block user (admin) */
