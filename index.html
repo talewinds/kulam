@@ -171,14 +171,18 @@ registerBtn.addEventListener('click', ()=>{
         approved:false
       });
 
-      // Close modal immediately
-      modalOverlay.style.display = 'none';
-      modal.innerHTML = ''; // clear modal content
-      alert("Registration submitted. Wait for admin approval.");
+      // Show success message first
+  regMsg.style.color = "green";
+  regMsg.innerText = "Registration submitted. Wait for admin approval.";
 
-    } catch(e){
-      regMsg.style.color="red";
-      regMsg.innerText = e.message;
+  // Close modal immediately after a short delay (optional)
+  setTimeout(()=>{
+    modalOverlay.style.display = 'none';
+    modal.innerHTML = '';
+  }, 300); // 0.3 sec delay to allow user to see message
+} catch(e) {
+  regMsg.style.color="red";
+  regMsg.innerText = e.message;
     }
   };
 });
