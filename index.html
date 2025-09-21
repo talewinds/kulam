@@ -561,7 +561,12 @@ async function loadPendingUsers(){
     container.innerHTML = '<h3>Pending Users</h3>';
 
     try {
-        const q = query(collection(db,'users'), where('approved','==',false));
+        const q = query(
+    collection(db,'users'),
+    where('approved','==', false),
+    where('blocked','==', false)    // only show non-blocked users
+);
+
         const snapshot = await getDocs(q);
 
         snapshot.forEach(docSnap => {
