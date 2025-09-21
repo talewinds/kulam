@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -172,6 +172,8 @@ registerBtn.addEventListener('click', ()=>{
       });
       regMsg.style.color = "green";
       regMsg.innerText = "Registration submitted. Wait for admin approval.";
+      // Close modal immediately after submission
+      setTimeout(()=>{ modalOverlay.style.display = 'none'; }, 500);
     } catch(e){
       regMsg.style.color="red";
       regMsg.innerText = e.message;
