@@ -132,57 +132,59 @@ registerBtn.addEventListener('click', ()=>{
   `;
   document.getElementById('cancelRegister').onclick = ()=>{ modalOverlay.style.display='none'; modal.innerHTML=''; };
 
-  document.getElementById('submitRegister').onclick = async ()=>{
-    const name = document.getElementById('regName').value.trim();
-    const year = document.getElementById('regYear').value.trim();
-    const gender = document.getElementById('regGender').value;
-    const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
-    const gothram = document.getElementById('regGothram').value.trim();
-    const nativePlace = document.getElementById('regNative').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const phone = document.getElementById('regPhone').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const confirmPassword = document.getElementById('regConfirmPassword').value;
-    const regMsg = document.getElementById('regMessage');
+document.getElementById('submitRegister').onclick = async () => {
+  const name = document.getElementById('regName').value.trim();
+  const year = document.getElementById('regYear').value.trim();
+  const gender = document.getElementById('regGender').value;
+  const tamilBrahmin = document.getElementById('regTamilBrahmin').value;
+  const gothram = document.getElementById('regGothram').value.trim();
+  const nativePlace = document.getElementById('regNative').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirmPassword = document.getElementById('regConfirmPassword').value;
+  const regMsg = document.getElementById('regMessage');
 
-    if(!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword){
-      regMsg.innerText = "All fields are required.";
-      return;
-    }
-    if(password !== confirmPassword){
-      regMsg.innerText = "Passwords do not match.";
-      return;
-    }
+  if (!name || !year || !gender || !tamilBrahmin || !gothram || !nativePlace || !email || !phone || !password || !confirmPassword) {
+    regMsg.innerText = "All fields are required.";
+    return;
+  }
+  if (password !== confirmPassword) {
+    regMsg.innerText = "Passwords do not match.";
+    return;
+  }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth,email,password);
-      await setDoc(doc(db,'users',userCredential.user.uid),{
-        uid:userCredential.user.uid,
-        name,
-        year,
-        gender,
-        tamilBrahmin,
-        gothram,
-        nativePlace,
-        email,
-        phone,
-        isAdmin:false,
-        blocked:false,
-        approved:false
-      });
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, 'users', userCredential.user.uid), {
+      uid: userCredential.user.uid,
+      name,
+      year,
+      gender,
+      tamilBrahmin,
+      gothram,
+      nativePlace,
+      email,
+      phone,
+      isAdmin: false,
+      blocked: false,
+      approved: false
+    });
 
-      // Show success message first
-  regMsg.style.color = "green";
-  regMsg.innerText = "Registration submitted. Wait for admin approval.";
-
-  // Close modal immediately after a short delay (optional)
-  setTimeout(()=>{
+    // ✅ Close modal immediately
     modalOverlay.style.display = 'none';
     modal.innerHTML = '';
-  }, 300); // 0.3 sec delay to allow user to see message
-} catch(e) {
-  regMsg.style.color="red";
-  regMsg.innerText = e.message;
+
+    // ✅ Show success message in loginDiv
+    const msgDiv = document.createElement('div');
+    msgDiv.style.color = 'green';
+    msgDiv.style.marginTop = '0.5rem';
+    msgDiv.innerText = 'Registration submitted successfully! Wait for admin approval.';
+    loginDiv.appendChild(msgDiv);
+
+  } catch (e) {
+    regMsg.style.color = "red";
+    regMsg.innerText = e.message;
     }
   };
 });
