@@ -100,25 +100,39 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Register
+// Register Fix
 registerBtn.addEventListener('click', async ()=>{
-  try{
-    const userCredential = await createUserWithEmailAndPassword(auth,emailInput.value,passwordInput.value);
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+
+  if (!email || !password) {
+    alert("Please enter both email and password.");
+    return;
+  }
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth,email,password);
     await setDoc(doc(db,'users',userCredential.user.uid),{uid:userCredential.user.uid,isAdmin:false,blocked:false});
-    messageDiv.innerText = 'Registered successfully.';
-  }catch(e){ alert(e.message); }
+    messageDiv.innerText = 'Registered successfully. You can log in now.';
+  } catch(e) { 
+    alert("Error: " + e.message); 
+  }
 });
 
 // Login
 loginBtn.addEventListener('click', async ()=>{
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if (!email || !password) { alert("Enter email & password"); return; }
+
   try{
-    const userCredential = await signInWithEmailAndPassword(auth,emailInput.value,passwordInput.value);
+    const userCredential = await signInWithEmailAndPassword(auth,email,password);
     const userDocSnap = await getDoc(doc(db,'users',userCredential.user.uid));
     if(userDocSnap.exists() && userDocSnap.data().blocked){
       alert('Your account is blocked by admin.');
       signOut(auth);
     }
-  }catch(e){ alert(e.message); }
+  }catch(e){ alert("Error: " + e.message); }
 });
 
 // Logout
@@ -139,7 +153,7 @@ familyForm.addEventListener('submit', async (e)=>{
       approved: false,
       edits: [],
       requests: [],
-      parentId: familyForm.parentId ? familyForm.parentId.value : null // For tree hierarchy
+      parentId: familyForm.parentId ? familyForm.parentId.value : null
     });
     messageDiv.innerText = 'Family entry added, pending admin approval.';
     familyForm.reset();
@@ -163,19 +177,16 @@ async function loadFamilyEntries(queryText=''){
     div.innerHTML = `<strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
       ${data.approved ? '<span class="approved">(Approved)</span>' : '<span class="pending">(Pending)</span>'}`;
 
-    // Edit button
     const editBtn = document.createElement('button');
     editBtn.innerText = 'Edit';
     editBtn.onclick = ()=>openEditModal(docSnap.id,data);
     div.appendChild(editBtn);
 
-    // Request full details
     const requestBtn = document.createElement('button');
     requestBtn.innerText = 'Request Full Details';
     requestBtn.onclick = ()=>requestFullDetails(docSnap.id,data);
     div.appendChild(requestBtn);
 
-    // Admin buttons
     if(isAdmin){
       if(!data.approved){
         const approveBtn = document.createElement('button');
@@ -187,8 +198,6 @@ async function loadFamilyEntries(queryText=''){
         };
         div.appendChild(approveBtn);
       }
-
-      // Access requests
       if(data.requests && data.requests.length>0){
         data.requests.forEach((req,i)=>{
           const reqBtn = document.createElement('button');
@@ -206,7 +215,6 @@ async function loadFamilyEntries(queryText=''){
         });
       }
 
-      // Block/unblock member
       const userBtn = document.createElement('button');
       userBtn.innerText = data.blocked ? 'Unblock Member' : 'Block Member';
       userBtn.onclick=async()=>{
@@ -303,7 +311,6 @@ async function renderTree(){
     }
   });
   const roots = [];
-  // Build hierarchy
   Object.values(nodeMap).forEach(node=>{
     const parentId = node.full.parentId;
     if(parentId && nodeMap[parentId]){
@@ -313,7 +320,6 @@ async function renderTree(){
     }
   });
 
-  // Convert to Treant.js config
   const treeConfig = {
     chart: { container: "#treeContainer" },
     nodeStructure: roots[0] || { text:{name:"No members yet"} }
