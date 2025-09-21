@@ -5,26 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Family Tree App</title>
 <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
-    header { background:#800000; color:white; padding:1rem; text-align:center;}
-    .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
-    input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
-    button { background:#800000; color:white; border:none; cursor:pointer;}
-    button:hover { background:#a00000; }
-    .hidden { display:none;}
-    .family-entry { padding:1rem; border-bottom:1px solid #ccc; display: flex; justify-content: space-between; align-items: center;}
-    .family-entry button { width:auto; margin-left:0.5rem;}
-    .approved { color:green; }
-    .pending { color:orange; }
-    .blocked { color:red; }
-    #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
-    #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
-    #modal h3 { margin-top:0; }
-    #message { margin:0.5rem 0; color:green; }
-    #treeContainer { margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
-    #treeContainer .node { font-size: 14px; } /* Improved tree node styling */
-    #treeContainer .node:hover { cursor: pointer; }
-    .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
+    header { background:#800000; color:white; padding:1rem; text-align:center;}
+    .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+    input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
+    button { background:#800000; color:white; border:none; cursor:pointer;}
+    button:hover { background:#a00000; }
+    .hidden { display:none;}
+    .family-entry { padding:1rem; border-bottom:1px solid #ccc; display: flex; justify-content: space-between; align-items: center;}
+    .family-entry button { width:auto; margin-left:0.5rem;}
+    .approved { color:green; }
+    .pending { color:orange; }
+    .blocked { color:red; }
+    #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
+    #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
+    #modal h3 { margin-top:0; }
+    #message { margin:0.5rem 0; color:green; }
+    #treeContainer { margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
+    #treeContainer .node { font-size: 14px; }
+    #treeContainer .node:hover { cursor: pointer; }
+    .reg-success-msg { color: green; margin-top: 1rem; text-align: center; }
 </style>
 <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
 <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
@@ -74,12 +74,53 @@ const parentIdSelect = document.getElementById('parentIdSelect');
 
 let currentUser = null;
 let isAdmin = false;
-let familyMembersData = []; // Store family data for easy access
+let familyMembersData = [];
+let pendingRegistrationData = null; // Store registration data temporarily
 
 // --- AUTH STATE ---
 onAuthStateChanged(auth, async (user) => {
     if(user){
         currentUser = user;
+        // Check if there's a pending registration to complete
+        if(pendingRegistrationData) {
+            try {
+                // Now that the user is fully authenticated, create the user document
+                await setDoc(doc(db, 'users', user.uid), {
+                    uid: user.uid,
+                    name: pendingRegistrationData.name,
+                    year: pendingRegistrationData.year,
+                    gender: pendingRegistrationData.gender,
+                    tamilBrahmin: pendingRegistrationData.tamilBrahmin,
+                    gothram: pendingRegistrationData.gothram,
+                    nativePlace: pendingRegistrationData.nativePlace,
+                    email: pendingRegistrationData.email,
+                    phone: pendingRegistrationData.phone,
+                    isAdmin: false,
+                    blocked: false,
+                    approved: false
+                });
+                console.log("User document created successfully!");
+                pendingRegistrationData = null; // Clear the pending data
+
+                // Show success message and sign out immediately
+                const successMsg = document.createElement('div');
+                successMsg.className = 'reg-success-msg';
+                successMsg.innerText = 'Registration submitted! Awaiting admin approval. Signing you out...';
+                loginDiv.appendChild(successMsg);
+                setTimeout(() => {
+                    successMsg.remove();
+                    signOut(auth);
+                }, 3000); // Sign out after 3 seconds
+                return;
+
+            } catch(e) {
+                console.error("Error creating user document:", e);
+                alert("An error occurred during registration. Please try again.");
+                signOut(auth); // Sign out the user to prevent inconsistent state
+                return;
+            }
+        }
+
         const userDocSnap = await getDoc(doc(db,'users',user.uid));
         if(userDocSnap.exists()){
             const data = userDocSnap.data();
@@ -94,7 +135,14 @@ onAuthStateChanged(auth, async (user) => {
                 signOut(auth);
                 return;
             }
+        } else {
+            // User exists in Auth but not in Firestore. This handles the case where setDoc failed previously.
+            alert('Your account data is missing. Please contact the administrator.');
+            signOut(auth);
+            return;
         }
+
+        // If user is approved and not blocked, proceed to dashboard
         loginDiv.classList.add('hidden');
         dashboardDiv.classList.remove('hidden');
         await loadFamilyEntries();
@@ -164,33 +212,15 @@ registerBtn.addEventListener('click', ()=>{
         }
 
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-                uid: userCredential.user.uid,
-                name,
-                year,
-                gender,
-                tamilBrahmin,
-                gothram,
-                nativePlace,
-                email,
-                phone,
-                isAdmin: false,
-                blocked: false,
-                approved: false
-            });
-
-            // Correctly close the modal and show success message
+            // Temporarily store the data
+            pendingRegistrationData = {
+                name, year, gender, tamilBrahmin, gothram, nativePlace, email, phone
+            };
+            // Create user in Auth. The onAuthStateChanged listener will handle the Firestore part.
+            await createUserWithEmailAndPassword(auth, email, password);
+            // The modal will close and a message will be shown via onAuthStateChanged
             modalOverlay.style.display = 'none';
             modal.innerHTML = '';
-            const successMsg = document.createElement('div');
-            successMsg.className = 'reg-success-msg';
-            successMsg.innerText = 'Registration submitted successfully! Please wait for admin approval.';
-            loginDiv.appendChild(successMsg);
-            setTimeout(() => {
-                successMsg.remove();
-            }, 5000); // Remove message after 5 seconds
-
         } catch (e) {
             regMsg.style.color = "red";
             regMsg.innerText = e.message;
@@ -203,23 +233,8 @@ loginBtn.addEventListener('click', async ()=>{
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
     if(!email || !password){ alert("Enter email & password"); return; }
-
     try{
-        const userCredential = await signInWithEmailAndPassword(auth,email,password);
-        const userDocSnap = await getDoc(doc(db,'users',userCredential.user.uid));
-        if(userDocSnap.exists()){
-            const data = userDocSnap.data();
-            if(!data.approved){
-                alert('Your registration is pending admin approval.');
-                signOut(auth);
-                return;
-            }
-            if(data.blocked){
-                alert('Your account is blocked.');
-                signOut(auth);
-                return;
-            }
-        }
+        await signInWithEmailAndPassword(auth,email,password);
     }catch(e){ alert(e.message); }
 });
 
@@ -230,7 +245,7 @@ logoutBtn.addEventListener('click', ()=>signOut(auth));
 familyForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
     try{
-        const parentId = parentIdSelect.value || null; // Get parent ID from new select
+        const parentId = parentIdSelect.value || null;
         await addDoc(collection(db,'familyTree'),{
             addedBy: currentUser.uid,
             name: familyForm.name.value,
@@ -259,10 +274,10 @@ async function loadFamilyEntries(queryText=''){
         q = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText+'\uf8ff'));
     }
     const snapshot = await getDocs(q);
-    familyMembersData = []; // Clear and reload
+    familyMembersData = [];
     snapshot.forEach(docSnap=>{
         const data = docSnap.data();
-        data.id = docSnap.id; // Add ID to data object
+        data.id = docSnap.id;
         familyMembersData.push(data);
         const div = document.createElement('div');
         div.classList.add('family-entry');
@@ -311,8 +326,6 @@ async function renderTree(){
 
     const nodeMap = {};
     const roots = [];
-
-    // Create a node object for each approved member
     approvedNodes.forEach(data => {
         const node = {
             text: { name: data.name },
@@ -323,7 +336,6 @@ async function renderTree(){
         nodeMap[data.id] = node;
     });
 
-    // Link nodes and find roots
     Object.values(nodeMap).forEach(node => {
         const parentId = node.full.parentId;
         if (parentId && nodeMap[parentId]) {
@@ -333,7 +345,6 @@ async function renderTree(){
         }
     });
 
-    // Check if there are multiple disconnected trees
     if (roots.length > 1) {
         const virtualRoot = {
             text: { name: "Family Trees" },
