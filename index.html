@@ -1,695 +1,380 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kulam — Tamil Brahmin Family Network</title>
-  <meta name="description" content="Community family tree with admin approvals" />
-  <style>
-    /* Reset + base */
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body,#app{height:100%}
-    body{font-family:Inter,Segoe UI,system-ui,Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#222}
-    a{color:inherit}
-    /* Layout */
-    .centered{display:flex;align-items:center;justify-content:center}
-    .container{max-width:1100px;margin:28px auto;padding:20px}
-    .card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.12)}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Tree App</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f4f4f4; margin:0; padding:0;}
+  header { background:#800000; color:white; padding:1rem; text-align:center;}
+  .container { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+  input, select, button, textarea { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc;}
+  button { background:#800000; color:white; border:none; cursor:pointer;}
+  button:hover { background:#a00000; }
+  .hidden { display:none;}
+  .family-entry { padding:1rem; border-bottom:1px solid #ccc;}
+  .family-entry button { width:auto; margin-left:0.5rem;}
+  .approved { color:green; }
+  .pending { color:orange; }
+  .blocked { color:red; }
+  #modalOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;}
+  #modal { background:white; padding:2rem; border-radius:10px; max-width:500px; width:90%; }
+  #modal h3 { margin-top:0; }
+  #message { margin:0.5rem 0; color:green; }
+  #treeContainer { margin-top:2rem; overflow-x:auto; border:1px solid #ccc; padding:1rem; border-radius:10px; background:#fff;}
+</style>
+<!-- Include Treant.js for tree diagram -->
+<link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
+<script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
+<script src="https://fperucic.github.io/treant-js/Treant.js"></script>
 
-    /* Header */
-    .header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;color:#fff}
-    .brand{font-size:1.6rem;font-weight:700;display:flex;align-items:center;gap:10px}
-    .brand .logo{background:#fff;color:#764ba2;border-radius:8px;padding:6px 8px;font-weight:700}
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, updateDoc, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-    /* Layout inside card */
-    .grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
-    @media (max-width:880px){.grid{grid-template-columns:1fr}.header{flex-direction:column;align-items:flex-start}}
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDiE8jLUA3lA1mTfBhDH_KQQ5J_sLbGQk8",
+  authDomain: "kulam-family-tree.firebaseapp.com",
+  projectId: "kulam-family-tree",
+  storageBucket: "kulam-family-tree.firebasestorage.app",
+  messagingSenderId: "219860158687",
+  appId: "1:219860158687:web:a2eefd26049298fcdb016a",
+  measurementId: "G-74J5ZKDEDX"
+};
 
-    /* Left panel: actions */
-    .panel{display:flex;flex-direction:column;gap:12px}
-    label{font-size:0.9rem;color:#444;margin-bottom:6px}
-    .input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee;font-size:0.95rem}
-    .btn{display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
-    .btn.secondary{background:#f4f6f9;color:#333;border:1px solid #e6e9ee}
-    .muted{color:#666;font-size:0.9rem}
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    /* Tabs */
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tab{padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.08);cursor:pointer}
-    .tab.active{background:#fff;color:#333;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+// Elements
+const loginDiv = document.getElementById('loginDiv');
+const dashboardDiv = document.getElementById('dashboardDiv');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const registerBtn = document.getElementById('registerBtn');
+const familyForm = document.getElementById('familyForm');
+const familyList = document.getElementById('familyList');
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const messageDiv = document.getElementById('message');
+const adminPanel = document.getElementById('adminPanel');
+const modalOverlay = document.getElementById('modalOverlay');
+const modal = document.getElementById('modal');
+const treeContainer = document.getElementById('treeContainer');
 
-    /* Search results */
-    .results{max-height:320px;overflow:auto;border-radius:8px;border:1px solid #f0f2f4;padding:8px}
-    .result-item{padding:10px;border-bottom:1px dashed #f1f3f5;display:flex;justify-content:space-between;gap:12px;align-items:center}
-    .result-item:last-child{border-bottom:none}
+let currentUser = null;
+let isAdmin = false;
 
-    /* Family map preview */
-    .family-map{background:#fbfdff;padding:14px;border-radius:10px;border:1px solid #eef3fb}
-    .node{display:inline-block;padding:10px 12px;border-radius:10px;margin:8px;border:1px solid #e6e9ee;background:#fff;min-width:140px;text-align:center}
-    .node.current{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:2px solid #ff6b6b}
-    .node.missing{background:#f7f7f7;color:#9a9a9a;border:1px dashed #ddd}
+// Auth state
+onAuthStateChanged(auth, async (user) => {
+  if(user){
+    currentUser = user;
+    const userDocSnap = await getDoc(doc(db,'users',user.uid));
+    if(userDocSnap.exists()){
+      const data = userDocSnap.data();
+      isAdmin = data.isAdmin || false;
+      if(data.blocked){
+        alert('You are blocked by admin.');
+        signOut(auth);
+        return;
+      }
+    }
+    loginDiv.classList.add('hidden');
+    dashboardDiv.classList.remove('hidden');
+    loadFamilyEntries();
+    renderTree();
+    if(isAdmin) adminPanel.classList.remove('hidden');
+    else adminPanel.classList.add('hidden');
+  } else {
+    currentUser = null;
+    isAdmin = false;
+    loginDiv.classList.remove('hidden');
+    dashboardDiv.classList.add('hidden');
+  }
+});
 
-    /* Admin badge */
-    .badge{background:#ffd965;color:#5b3f00;padding:6px 8px;border-radius:999px;font-weight:700}
+// Register
+registerBtn.addEventListener('click', async ()=>{
+  try{
+    const userCredential = await createUserWithEmailAndPassword(auth,emailInput.value,passwordInput.value);
+    await setDoc(doc(db,'users',userCredential.user.uid),{uid:userCredential.user.uid,isAdmin:false,blocked:false});
+    messageDiv.innerText = 'Registered successfully.';
+  }catch(e){ alert(e.message); }
+});
 
-    /* Modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:1200}
-    .modal{background:#fff;border-radius:12px;padding:18px;max-width:900px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,0.25)}
+// Login
+loginBtn.addEventListener('click', async ()=>{
+  try{
+    const userCredential = await signInWithEmailAndPassword(auth,emailInput.value,passwordInput.value);
+    const userDocSnap = await getDoc(doc(db,'users',userCredential.user.uid));
+    if(userDocSnap.exists() && userDocSnap.data().blocked){
+      alert('Your account is blocked by admin.');
+      signOut(auth);
+    }
+  }catch(e){ alert(e.message); }
+});
 
-    footer{color:#fff;text-align:center;margin-top:18px}
+// Logout
+logoutBtn.addEventListener('click', ()=>signOut(auth));
 
-    /* small helpers */
-    .flex{display:flex;gap:8px;align-items:center}
-    .spacer{flex:1}
-    .small{font-size:0.85rem;color:#666}
+// Add Family Entry
+familyForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  try{
+    await addDoc(collection(db,'familyTree'),{
+      addedBy: currentUser.uid,
+      name: familyForm.name.value,
+      nickname: familyForm.nickname.value,
+      place: familyForm.place.value,
+      gothram: familyForm.gothram.value,
+      married: familyForm.married.value,
+      phone: familyForm.phone.value,
+      approved: false,
+      edits: [],
+      requests: [],
+      parentId: familyForm.parentId ? familyForm.parentId.value : null // For tree hierarchy
+    });
+    messageDiv.innerText = 'Family entry added, pending admin approval.';
+    familyForm.reset();
+    loadFamilyEntries();
+    renderTree();
+  }catch(e){alert(e.message);}
+});
 
-  </style>
+// Load Family Entries
+async function loadFamilyEntries(queryText=''){
+  familyList.innerHTML='';
+  let q = collection(db,'familyTree');
+  if(queryText){
+    q = query(collection(db,'familyTree'), where('name','>=', queryText), where('name','<=', queryText+'\uf8ff'));
+  }
+  const snapshot = await getDocs(q);
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const div = document.createElement('div');
+    div.classList.add('family-entry');
+    div.innerHTML = `<strong>${data.name}</strong> | ${data.place || '-'} | ${data.gothram || '-'}
+      ${data.approved ? '<span class="approved">(Approved)</span>' : '<span class="pending">(Pending)</span>'}`;
+
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.innerText = 'Edit';
+    editBtn.onclick = ()=>openEditModal(docSnap.id,data);
+    div.appendChild(editBtn);
+
+    // Request full details
+    const requestBtn = document.createElement('button');
+    requestBtn.innerText = 'Request Full Details';
+    requestBtn.onclick = ()=>requestFullDetails(docSnap.id,data);
+    div.appendChild(requestBtn);
+
+    // Admin buttons
+    if(isAdmin){
+      if(!data.approved){
+        const approveBtn = document.createElement('button');
+        approveBtn.innerText='Approve';
+        approveBtn.onclick=async()=>{
+          await updateDoc(doc(db,'familyTree',docSnap.id),{approved:true});
+          loadFamilyEntries();
+          renderTree();
+        };
+        div.appendChild(approveBtn);
+      }
+
+      // Access requests
+      if(data.requests && data.requests.length>0){
+        data.requests.forEach((req,i)=>{
+          const reqBtn = document.createElement('button');
+          reqBtn.innerText=`Approve Access #${i+1}`;
+          reqBtn.onclick=async()=>{
+            const requests = [...data.requests];
+            requests.splice(i,1);
+            await updateDoc(doc(db,'familyTree',docSnap.id),{
+              requests,
+              [`fullAccess_${req.uid}`]:true
+            });
+            loadFamilyEntries();
+          };
+          div.appendChild(reqBtn);
+        });
+      }
+
+      // Block/unblock member
+      const userBtn = document.createElement('button');
+      userBtn.innerText = data.blocked ? 'Unblock Member' : 'Block Member';
+      userBtn.onclick=async()=>{
+        await updateDoc(doc(db,'users',data.addedBy),{blocked:!data.blocked});
+        loadFamilyEntries();
+      };
+      div.appendChild(userBtn);
+    }
+
+    familyList.appendChild(div);
+  });
+}
+
+// Search
+searchBtn.addEventListener('click', ()=>loadFamilyEntries(searchInput.value));
+
+// Edit Modal
+function openEditModal(id,data){
+  modalOverlay.style.display='flex';
+  modal.innerHTML = `
+    <h3>Edit Family Entry</h3>
+    <input type="text" id="editName" placeholder="Name" value="${data.name}">
+    <input type="text" id="editNickname" placeholder="Nickname" value="${data.nickname || ''}">
+    <input type="text" id="editPlace" placeholder="Place" value="${data.place || ''}">
+    <input type="text" id="editGothram" placeholder="Gothram" value="${data.gothram || ''}">
+    <select id="editMarried">
+      <option value="">Marital Status</option>
+      <option value="Married" ${data.married==='Married'?'selected':''}>Married</option>
+      <option value="Unmarried" ${data.married==='Unmarried'?'selected':''}>Unmarried</option>
+    </select>
+    <input type="text" id="editPhone" placeholder="Phone" value="${data.phone || ''}">
+    <button id="saveEditBtn">Save Edit</button>
+    <button id="closeModalBtn">Cancel</button>
+  `;
+  document.getElementById('closeModalBtn').onclick = ()=>{ modalOverlay.style.display='none'; };
+  document.getElementById('saveEditBtn').onclick = async ()=>{
+    const editData = {
+      name: document.getElementById('editName').value,
+      nickname: document.getElementById('editNickname').value,
+      place: document.getElementById('editPlace').value,
+      gothram: document.getElementById('editGothram').value,
+      married: document.getElementById('editMarried').value,
+      phone: document.getElementById('editPhone').value
+    };
+    await addDoc(collection(db,'familyTreeEdits'),{
+      originalId:id,
+      newData:editData,
+      requestedBy:currentUser.uid,
+      approved:false
+    });
+    messageDiv.innerText='Edit request submitted, pending admin approval.';
+    modalOverlay.style.display='none';
+  };
+}
+
+// Request Full Details
+async function requestFullDetails(id,data){
+  const uid = currentUser.uid;
+  if(data[`fullAccess_${uid}`]){
+    openFullDetailsModal(data);
+    return;
+  }
+  const requests = data.requests || [];
+  if(!requests.find(r=>r.uid===uid)) requests.push({uid});
+  await updateDoc(doc(db,'familyTree',id),{requests});
+  messageDiv.innerText='Request submitted. Admin approval needed.';
+}
+
+// Full Details Modal
+function openFullDetailsModal(data){
+  modalOverlay.style.display='flex';
+  modal.innerHTML = `<h3>Full Details: ${data.name}</h3>
+    <p><strong>Nickname:</strong> ${data.nickname || '-'}</p>
+    <p><strong>Place:</strong> ${data.place || '-'}</p>
+    <p><strong>Gothram:</strong> ${data.gothram || '-'}</p>
+    <p><strong>Married:</strong> ${data.married || '-'}</p>
+    <p><strong>Phone:</strong> ${data.phone || '-'}</p>
+    <button id="closeModalBtn">Close</button>`;
+  document.getElementById('closeModalBtn').onclick = ()=>{ modalOverlay.style.display='none'; };
+}
+
+// Render Tree Diagram
+async function renderTree(){
+  treeContainer.innerHTML='';
+  const snapshot = await getDocs(collection(db,'familyTree'));
+  const nodes = [];
+  const nodeMap = {};
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    if(data.approved){
+      const node = { text:{name:data.name}, children:[], id:docSnap.id, full:data };
+      nodeMap[docSnap.id] = node;
+      nodes.push(node);
+    }
+  });
+  const roots = [];
+  // Build hierarchy
+  Object.values(nodeMap).forEach(node=>{
+    const parentId = node.full.parentId;
+    if(parentId && nodeMap[parentId]){
+      nodeMap[parentId].children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  // Convert to Treant.js config
+  const treeConfig = {
+    chart: { container: "#treeContainer" },
+    nodeStructure: roots[0] || { text:{name:"No members yet"} }
+  };
+
+  new Treant(treeConfig);
+}
+</script>
 </head>
 <body>
-  <div id="app">
-    <div class="container">
-      <div class="header">
-        <div class="brand"><span class="logo">🕉️</span> Kulam — Tamil Brahmin Family Network</div>
-        <div class="flex">
-          <div id="currentState" class="muted">Not signed in</div>
-          <div style="width:10px"></div>
-          <button id="btnSignOut" class="btn secondary" style="display:none" onclick="signOut()">Sign out</button>
-        </div>
-      </div>
+<header>
+<h1>Family Tree Portal</h1>
+</header>
 
-      <!-- main card -->
-      <div class="card">
-        <div class="grid">
-          <!-- left control panel -->
-          <div>
-            <div style="margin-bottom:12px">
-              <strong>Access & Account</strong>
-              <div class="small muted">Only admin-approved members can access the site. Sign up, then wait for admin approval.</div>
-            </div>
+<div class="container" id="loginDiv">
+  <h2>Login / Register</h2>
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Password" required>
+  <button id="loginBtn">Login</button>
+  <button id="registerBtn">Register</button>
+</div>
 
-            <div id="authPanel">
-              <!-- Request access (optional) -->
-              <div id="requestForm">
-                <label>Community Access Code (optional)</label>
-                <input id="accessCode" class="input" placeholder="Enter community access code (if provided)" value="kulam2025">
+<div class="container hidden" id="dashboardDiv">
+  <button id="logoutBtn">Logout</button>
+  <h2>Dashboard</h2>
 
-                <label style="margin-top:8px">Your Full Name</label>
-                <input id="fullName" class="input" placeholder="e.g. Krishnan Iyer">
+  <h3>Add Family Member</h3>
+  <form id="familyForm">
+    <input type="text" name="name" placeholder="Name" required>
+    <input type="text" name="nickname" placeholder="Nickname">
+    <input type="text" name="place" placeholder="Place">
+    <input type="text" name="gothram" placeholder="Gothram">
+    <select name="married">
+      <option value="">Marital Status</option>
+      <option value="Married">Married</option>
+      <option value="Unmarried">Unmarried</option>
+    </select>
+    <input type="text" name="phone" placeholder="Phone Number">
+    <input type="hidden" name="parentId" placeholder="Parent ID">
+    <button type="submit">Add</button>
+  </form>
+  <div id="message"></div>
 
-                <label style="margin-top:8px">Father's Name</label>
-                <input id="fatherName" class="input" placeholder="e.g. Srinivasan Iyer">
+  <h3>Search Family</h3>
+  <input type="text" id="searchInput" placeholder="Enter Name to search">
+  <button id="searchBtn">Search</button>
 
-                <label style="margin-top:8px">Email (used to sign in)</label>
-                <input id="email" class="input" type="email" placeholder="your.email@example.com">
+  <h3>Family Tree Entries</h3>
+  <div id="familyList"></div>
 
-                <div style="margin-top:10px;display:flex;gap:8px">
-                  <button class="btn" id="btnRequest" onclick="requestAccess()">Request Access</button>
-                  <button class="btn secondary" onclick="showAuthOptions()">Sign Up / Sign In</button>
-                </div>
+  <h3>Family Tree Diagram</h3>
+  <div id="treeContainer"></div>
 
-                <div id="requestMessage" class="small muted" style="margin-top:10px"></div>
-              </div>
-
-              <!-- Auth options (Sign Up / Sign In) -->
-              <div id="authOptions" style="display:none;margin-top:12px">
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn" onclick="showSignUp()">Create account</button>
-                  <button class="btn secondary" onclick="showLogin()">Sign in</button>
-                </div>
-              </div>
-
-              <!-- Sign up form -->
-              <div id="signUpForm" style="display:none;margin-top:12px">
-                <label>Email</label>
-                <input id="signupEmail" class="input" type="email" placeholder="your.email@example.com">
-                <label style="margin-top:8px">Choose a password</label>
-                <input id="signupPassword" class="input" type="password" placeholder="minimum 6 characters">
-                <label style="margin-top:8px">Full name</label>
-                <input id="signupFullName" class="input" placeholder="Your full name">
-                <div style="margin-top:10px;display:flex;gap:8px">
-                  <button class="btn" onclick="signUp()">Create account</button>
-                  <button class="btn secondary" onclick="hideAuthForms()">Cancel</button>
-                </div>
-                <div id="signupMessage" class="small muted" style="margin-top:8px"></div>
-              </div>
-
-              <!-- Sign in form -->
-              <div id="loginForm" style="display:none;margin-top:12px">
-                <label>Email</label>
-                <input id="loginEmail" class="input" type="email" placeholder="your.email@example.com">
-                <label style="margin-top:8px">Password</label>
-                <input id="loginPassword" class="input" type="password" placeholder="Your password">
-                <div style="margin-top:10px;display:flex;gap:8px">
-                  <button class="btn" onclick="signIn()">Sign in</button>
-                  <button class="btn secondary" onclick="hideAuthForms()">Cancel</button>
-                </div>
-                <div id="loginMessage" class="small muted" style="margin-top:10px"></div>
-              </div>
-
-            </div>
-
-            <!-- admin controls (only visible to admin) -->
-            <div id="adminPanel" style="margin-top:16px;display:none">
-              <strong>Admin Panel</strong>
-              <div class="small muted">Approve/block members and manage requests.</div>
-              <div style="margin-top:10px;display:flex;gap:8px">
-                <button class="btn" onclick="openAdminModal()">Open Admin Dashboard</button>
-              </div>
-            </div>
-
-            <div style="margin-top:18px">
-              <strong>Quick Actions</strong>
-              <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-                <button class="btn secondary" onclick="showTab('search')">🔎 Find Family</button>
-                <button class="btn secondary" onclick="showTab('myNetwork')">🌳 My Network</button>
-                <button class="btn secondary" onclick="showTab('explore')">🧭 Explore</button>
-              </div>
-            </div>
-
-            <div style="margin-top:18px" class="small muted">Notes: Replace the firebaseConfig object (below) with your Firebase project's configuration and enable Email/Password auth.</div>
-
-          </div>
-
-          <!-- right content area -->
-          <div>
-            <div class="tabs" id="tabs">
-              <div class="tab active" data-tab="search" onclick="showTab('search')">Find My Family</div>
-              <div class="tab" data-tab="myNetwork" onclick="showTab('myNetwork')">My Network</div>
-              <div class="tab" data-tab="explore" onclick="showTab('explore')">Explore Families</div>
-              <div class="tab" data-tab="addFamily" onclick="showTab('addFamily')">Add Family</div>
-            </div>
-
-            <div style="margin-top:12px">
-              <!-- SEARCH TAB -->
-              <div id="tab-search">
-                <div class="card" style="margin-bottom:12px">
-                  <strong>Search by name or family code</strong>
-                  <div class="small muted">Results show only public fields (Name, Place, Gothram). Request more details from admin.</div>
-                  <div style="margin-top:10px;display:flex;gap:8px">
-                    <input id="searchInput" class="input" placeholder="Type name or family code..." oninput="debouncedSearch()">
-                    <button class="btn secondary" onclick="clearSearch()">Clear</button>
-                  </div>
-                </div>
-
-                <div id="searchResults" class="results"></div>
-              </div>
-
-              <!-- MY NETWORK TAB -->
-              <div id="tab-myNetwork" style="display:none">
-                <div class="card">
-                  <div style="display:flex;justify-content:space-between;align-items:center">
-                    <strong>My Family Preview</strong>
-                    <div>
-                      <span class="badge">Private Data Hidden</span>
-                    </div>
-                  </div>
-
-                  <div style="margin-top:10px" id="myNetworkArea">
-                    <div class="family-map" id="familyPreview">No family selected</div>
-                  </div>
-
-                  <div style="margin-top:12px;display:flex;gap:8px">
-                    <button class="btn" onclick="requestExport()">Request Full Details (Admin)</button>
-                    <button class="btn secondary" onclick="shareFamilyLink()">Get Family Code</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- EXPLORE TAB -->
-              <div id="tab-explore" style="display:none">
-                <div class="card">
-                  <strong>Explore Families</strong>
-                  <div class="small muted">Filter families by gothram or region. Only public fields shown.</div>
-
-                  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                    <select id="filterGothram" class="input" style="max-width:220px" onchange="loadExplore()">
-                      <option value="">All Gothrams</option>
-                      <option value="Bharadvaja">Bharadvaja</option>
-                      <option value="Kashyapa">Kashyapa</option>
-                      <option value="Atri">Atri</option>
-                      <option value="Vasishtha">Vasishtha</option>
-                    </select>
-
-                    <select id="filterRegion" class="input" style="max-width:220px" onchange="loadExplore()">
-                      <option value="">All Regions</option>
-                      <option value="Palakkad">Palakkad</option>
-                      <option value="Thanjavur">Thanjavur</option>
-                      <option value="Chennai">Chennai</option>
-                      <option value="Kumbakonam">Kumbakonam</option>
-                    </select>
-                  </div>
-
-                  <div id="exploreResults" class="results" style="margin-top:12px"></div>
-                </div>
-              </div>
-
-              <!-- ADD FAMILY TAB -->
-              <div id="tab-addFamily" style="display:none">
-                <div class="card">
-                  <strong>Create a New Family Network</strong>
-                  <div class="small muted">Search first to avoid duplicates. New families are added as "restricted" — only Name, Place, Gothram are public.</div>
-
-                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-                    <label>Family Code (unique)</label>
-                    <input id="familyCode" class="input" placeholder="e.g. IYER-1975-CHN">
-
-                    <label>Head of Family Name</label>
-                    <input id="headName" class="input" placeholder="Full name">
-
-                    <label>Place / Town</label>
-                    <input id="place" class="input" placeholder="Village / Town">
-
-                    <label>Gothram</label>
-                    <input id="gothram" class="input" placeholder="e.g. Bharadvaja">
-
-                    <label>Other details (optional)</label>
-                    <textarea id="fullDetails" class="input" rows="4" placeholder="Birth years, occupations, relations... (kept private)"></textarea>
-
-                    <div style="display:flex;gap:8px;margin-top:6px">
-                      <button class="btn" onclick="addFamily()">Create Family</button>
-                      <button class="btn secondary" onclick="clearFamilyForm()">Clear</button>
-                    </div>
-
-                    <div id="addFamilyMsg" class="small muted" style="margin-top:6px"></div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-
-      <footer>
-        <div class="small">Built for GitHub Pages + Firebase. Replace firebaseConfig below and set Firestore rules before going public.</div>
-      </footer>
-
-    </div>
+  <div id="adminPanel" class="hidden">
+    <h3>Admin Panel</h3>
+    <p>Approve pending entries, edits, access requests, block/unblock members here.</p>
   </div>
+</div>
 
-  <!-- Admin modal -->
-  <div id="adminModalBackdrop" class="modal-backdrop">
-    <div class="modal">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <strong>Admin Dashboard</strong>
-        <button class="btn secondary" onclick="closeAdminModal()">Close</button>
-      </div>
-
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:260px">
-          <div style="font-weight:700;margin-bottom:8px">Pending Requests</div>
-          <div id="pendingList" class="results" style="min-height:140px"></div>
-        </div>
-
-        <div style="flex:1;min-width:260px">
-          <div style="font-weight:700;margin-bottom:8px">Pending Users (signed up)</div>
-          <div id="pendingUsersList" class="results" style="min-height:140px"></div>
-        </div>
-
-        <div style="flex:1;min-width:260px">
-          <div style="font-weight:700;margin-bottom:8px">Approved Members</div>
-          <div id="approvedList" class="results" style="min-height:140px"></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Firebase + App logic -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script>
-    /*****************************************************************
-     * BEFORE DEPLOY:
-     * - Replace firebaseConfig with your Firebase project values.
-     * - Enable Email/Password sign-in in Firebase Authentication.
-     * - Configure Firestore rules carefully (examples below).
-     * - Test flows on a staging project before going public.
-     *****************************************************************/
-
-    const firebaseConfig = {
-      apiKey: "REPLACE_API_KEY",
-      authDomain: "REPLACE_AUTH_DOMAIN",
-      projectId: "REPLACE_PROJECT_ID",
-      // ... rest of config values
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    // App state
-    let currentUser = null;
-    let searchTimeout = null;
-
-    // ---------- UI helpers ----------
-    function showTab(key){
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      document.querySelectorAll('.tab').forEach(t=>{ if(t.dataset.tab===key) t.classList.add('active') });
-      ['search','myNetwork','explore','addFamily'].forEach(k=>{
-        const el = document.getElementById('tab-'+k);
-        if(el) el.style.display = (k===key? 'block' : 'none');
-      });
-    }
-
-    function showAuthOptions(){ document.getElementById('requestForm').style.display='none'; document.getElementById('authOptions').style.display='block'; }
-    function showSignUp(){ document.getElementById('authOptions').style.display='none'; document.getElementById('signUpForm').style.display='block'; document.getElementById('loginForm').style.display='none'; }
-    function showLogin(){ document.getElementById('authOptions').style.display='none'; document.getElementById('loginForm').style.display='block'; document.getElementById('signUpForm').style.display='none'; }
-    function hideAuthForms(){ document.getElementById('authOptions').style.display='none'; document.getElementById('loginForm').style.display='none'; document.getElementById('signUpForm').style.display='none'; document.getElementById('requestForm').style.display='block'; }
-
-    function setState(text){ document.getElementById('currentState').textContent = text }
-
-    // ---------- Auth / Request Access ----------
-    async function requestAccess(){
-      const accessCode = document.getElementById('accessCode').value.trim();
-      const fullName = document.getElementById('fullName').value.trim();
-      const fatherName = document.getElementById('fatherName').value.trim();
-      const email = document.getElementById('email').value.trim();
-
-      const msg = document.getElementById('requestMessage');
-      msg.textContent = '';
-
-      if(!fullName || !fatherName || !email){ msg.textContent = 'Please fill all fields.'; return; }
-
-      try{
-        const existing = await db.collection('requests').where('email','==',email).get();
-        if(!existing.empty){ msg.textContent = 'A pending request with this email already exists.'; return; }
-
-        await db.collection('requests').add({ fullName, fatherName, email, accessCode, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        msg.textContent = 'Request submitted. After you receive approval, please create an account using Sign Up -> same email.';
-      }catch(err){ console.error(err); msg.textContent = 'Error submitting request.' }
-    }
-
-    // Sign up flow: creates Auth user + users doc (role: pending)
-    async function signUp(){
-      const email = document.getElementById('signupEmail').value.trim();
-      const password = document.getElementById('signupPassword').value;
-      const fullName = document.getElementById('signupFullName').value.trim();
-      const msg = document.getElementById('signupMessage'); msg.textContent='';
-      if(!email || !password || !fullName){ msg.textContent='Please provide name, email and password.'; return; }
-      if(password.length < 6){ msg.textContent = 'Password must be at least 6 characters.'; return; }
-
-      try{
-        const res = await auth.createUserWithEmailAndPassword(email, password);
-        // create users doc with uid as key to simplify lookups
-        await db.collection('users').doc(res.user.uid).set({ fullName, email, role:'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        msg.textContent = 'Account created. Waiting for admin approval. You can sign out and return later.';
-        // signOut(); // keep signed in to show awaiting approval state handled by onAuthStateChanged
-      }catch(err){ console.error(err); msg.textContent = 'Sign up failed: '+(err.message || err.code); }
-    }
-
-    // Sign in
-    async function signIn(){
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      const msg = document.getElementById('loginMessage'); msg.textContent='';
-      if(!email || !password){ msg.textContent='Provide email and password.'; return; }
-
-      try{
-        await auth.signInWithEmailAndPassword(email,password);
-        // onAuthStateChanged will update UI
-      }catch(err){ console.error(err); msg.textContent = 'Sign-in failed. Check credentials.'; }
-    }
-
-    function signOut(){ auth.signOut(); }
-
-    // Watch auth state
-    auth.onAuthStateChanged(async (user)=>{
-      currentUser = user;
-      if(user){
-        // fetch user's role from users collection (doc id = uid when created via signUp)
-        const udoc = await db.collection('users').doc(user.uid).get();
-        const data = udoc.exists ? udoc.data() : null;
-
-        if(!data){
-          // user exists in auth but we don't have a users doc yet. Create a pending users doc so admin can approve
-          await db.collection('users').doc(user.uid).set({ fullName: user.displayName || '', email: user.email, role:'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-          setState(user.email + ' — awaiting approval');
-          document.getElementById('btnSignOut').style.display='inline-block';
-          document.getElementById('requestForm').style.display='none';
-          document.getElementById('loginForm').style.display='none';
-          document.getElementById('adminPanel').style.display='none';
-          return;
-        }
-
-        if(data.role === 'pending'){
-          setState((data.fullName || user.email) + ' — Awaiting admin approval');
-          document.getElementById('btnSignOut').style.display='inline-block';
-          document.getElementById('requestForm').style.display='none';
-          document.getElementById('loginForm').style.display='none';
-          document.getElementById('adminPanel').style.display='none';
-          return;
-        }
-
-        if(data.role === 'blocked'){
-          setState((data.fullName || user.email) + ' — Access blocked by admin');
-          document.getElementById('btnSignOut').style.display='inline-block';
-          document.getElementById('adminPanel').style.display='none';
-          return;
-        }
-
-        // approved (or admin)
-        setState((data.fullName || user.email) + (data.role === 'admin' ? ' — Admin' : ''));
-        document.getElementById('btnSignOut').style.display='inline-block';
-        document.getElementById('requestForm').style.display='none';
-        document.getElementById('loginForm').style.display='none';
-        document.getElementById('adminPanel').style.display = (data.role === 'admin') ? 'block' : 'none';
-
-      }else{
-        // no user signed in
-        setState('Not signed in');
-        document.getElementById('btnSignOut').style.display='none';
-        document.getElementById('requestForm').style.display='block';
-        document.getElementById('loginForm').style.display='none';
-        document.getElementById('adminPanel').style.display = 'none';
-      }
-    });
-
-    // ---------- Admin modal ----------
-    async function openAdminModal(){
-      document.getElementById('adminModalBackdrop').style.display='flex';
-      await loadPendingRequests();
-      await loadPendingUsers();
-      await loadApprovedMembers();
-    }
-    function closeAdminModal(){ document.getElementById('adminModalBackdrop').style.display='none'; }
-
-    async function loadPendingRequests(){
-      const list = document.getElementById('pendingList'); list.innerHTML='Loading...';
-      const snapshot = await db.collection('requests').orderBy('createdAt','asc').get();
-      if(snapshot.empty){ list.innerHTML = '<div class="small muted">No pending requests</div>'; return; }
-      list.innerHTML = '';
-      snapshot.forEach(doc=>{
-        const r = doc.data();
-        const div = document.createElement('div'); div.className='result-item';
-        div.innerHTML = `<div><div style="font-weight:700">${escapeHtml(r.fullName)}</div><div class="small muted">${escapeHtml(r.email)}</div></div>`;
-        const actions = document.createElement('div'); actions.className='flex';
-        const btnApprove = document.createElement('button'); btnApprove.className='btn'; btnApprove.textContent='Approve';
-        btnApprove.onclick = ()=>approveRequest(doc.id, r);
-        const btnReject = document.createElement('button'); btnReject.className='btn secondary'; btnReject.textContent='Reject';
-        btnReject.onclick = ()=>rejectRequest(doc.id);
-        actions.appendChild(btnApprove); actions.appendChild(btnReject);
-        div.appendChild(actions);
-        list.appendChild(div);
-      })
-    }
-
-    async function loadPendingUsers(){
-      const list = document.getElementById('pendingUsersList'); list.innerHTML='Loading...';
-      const snapshot = await db.collection('users').where('role','==','pending').get();
-      if(snapshot.empty){ list.innerHTML = '<div class="small muted">No pending users</div>'; return; }
-      list.innerHTML = '';
-      snapshot.forEach(doc=>{
-        const u = doc.data();
-        const div = document.createElement('div'); div.className='result-item';
-        div.innerHTML = `<div><div style="font-weight:700">${escapeHtml(u.fullName)}</div><div class="small muted">${escapeHtml(u.email)}</div></div>`;
-        const actions = document.createElement('div'); actions.className='flex';
-        const btnApprove = document.createElement('button'); btnApprove.className='btn'; btnApprove.textContent='Approve';
-        btnApprove.onclick = ()=>approveUser(doc.id);
-        const btnBlock = document.createElement('button'); btnBlock.className='btn secondary'; btnBlock.textContent='Block';
-        btnBlock.onclick = ()=>blockMember(doc.id);
-        actions.appendChild(btnApprove); actions.appendChild(btnBlock);
-        div.appendChild(actions);
-        list.appendChild(div);
-      })
-    }
-
-    async function loadApprovedMembers(){
-      const list = document.getElementById('approvedList'); list.innerHTML='Loading...';
-      const snapshot = await db.collection('users').where('role','in',['approved','admin']).get();
-      if(snapshot.empty){ list.innerHTML = '<div class="small muted">No approved members</div>'; return; }
-      list.innerHTML = '';
-      snapshot.forEach(doc=>{
-        const u = doc.data();
-        const div = document.createElement('div'); div.className='result-item';
-        div.innerHTML = `<div><div style="font-weight:700">${escapeHtml(u.fullName)}</div><div class="small muted">${escapeHtml(u.email)} • ${escapeHtml(u.role || '')}</div></div>`;
-        const actions = document.createElement('div'); actions.className='flex';
-        const btnBlock = document.createElement('button'); btnBlock.className='btn secondary'; btnBlock.textContent='Block';
-        btnBlock.onclick = ()=>blockMember(doc.id);
-        actions.appendChild(btnBlock);
-        if(u.role !== 'admin'){
-          const btnMakeAdmin = document.createElement('button'); btnMakeAdmin.className='btn'; btnMakeAdmin.textContent='Make Admin';
-          btnMakeAdmin.onclick = ()=>makeAdmin(doc.id);
-          actions.appendChild(btnMakeAdmin);
-        }
-        div.appendChild(actions);
-        list.appendChild(div);
-      })
-    }
-
-    // Approve a request: prefer to update existing users doc (by email), else create an approved user doc and notify admin
-    async function approveRequest(requestId, requestData){
-      try{
-        // check if a users doc exists with this email
-        const usersSnap = await db.collection('users').where('email','==',requestData.email).get();
-        if(!usersSnap.empty){
-          // update all matches to approved
-          const batch = db.batch();
-          usersSnap.forEach(d=> batch.update(db.collection('users').doc(d.id), { role: 'approved' }));
-          await batch.commit();
-        }else{
-          // create a users doc without uid (admin should ask user to sign up or create auth user manually)
-          await db.collection('users').add({ fullName: requestData.fullName, fatherName: requestData.fatherName, email: requestData.email, role:'approved', createdAt: firebase.firestore.FieldValue.serverTimestamp(), note:'Please ask user to sign up with this email.' });
-        }
-
-        await db.collection('requests').doc(requestId).delete();
-        alert('Request approved. If the user has already signed up, they can sign in. If not, ask them to Sign Up with the same email.');
-        await loadPendingRequests(); await loadPendingUsers(); await loadApprovedMembers();
-      }catch(err){ console.error(err); alert('Error approving request: '+(err.message||err)); }
-    }
-
-    // Approve a signed-up user (docId is uid doc or auto-id). Prefer doc id that matches uid.
-    async function approveUser(docId){
-      if(!confirm('Approve this user?')) return;
-      try{ await db.collection('users').doc(docId).update({ role:'approved' }); await loadPendingUsers(); await loadApprovedMembers(); alert('User approved.'); }catch(err){ console.error(err); alert('Error: '+(err.message||err)); }
-    }
-
-    async function rejectRequest(requestId){ if(!confirm('Reject this request?')) return; await db.collection('requests').doc(requestId).delete(); await loadPendingRequests(); }
-    async function blockMember(docId){ if(!confirm('Block this member?')) return; await db.collection('users').doc(docId).update({role:'blocked'}); await loadPendingUsers(); await loadApprovedMembers(); }
-    async function makeAdmin(docId){ if(!confirm('Make this member an admin?')) return; await db.collection('users').doc(docId).update({role:'admin'}); await loadApprovedMembers(); }
-
-    // ---------- Family Create / Search ----------
-    async function addFamily(){
-      const familyCode = document.getElementById('familyCode').value.trim();
-      const headName = document.getElementById('headName').value.trim();
-      const place = document.getElementById('place').value.trim();
-      const gothram = document.getElementById('gothram').value.trim();
-      const fullDetails = document.getElementById('fullDetails').value.trim();
-      const msg = document.getElementById('addFamilyMsg'); msg.textContent='';
-      if(!familyCode || !headName || !place || !gothram){ msg.textContent='Please fill required fields.'; return; }
-
-      try{
-        // ensure unique family code
-        const exists = await db.collection('families').where('familyCode','==',familyCode).get();
-        if(!exists.empty){ msg.textContent='Family code already exists. Choose another unique code.'; return; }
-
-        await db.collection('families').add({ familyCode, headName, place, gothram, fullDetails, createdBy: currentUser ? currentUser.uid : null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-        msg.textContent = 'Family created. Public fields are visible to all members. Private details remain hidden; request via admin if needed.';
-        clearFamilyForm();
-        loadExplore();
-      }catch(err){ console.error(err); msg.textContent='Error creating family.' }
-    }
-    function clearFamilyForm(){ ['familyCode','headName','place','gothram','fullDetails'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('addFamilyMsg').textContent=''; }
-
-    // minimal XSS escape
-    function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]}) }
-
-    // Search families (only show name/place/gothram in results)
-    async function searchFamilies(q){
-      const out = document.getElementById('searchResults'); out.innerHTML='Searching...';
-      if(!q) { out.innerHTML=''; return; }
-      const qLower = q.toLowerCase();
-
-      // naive client-side search: fetch limited number of documents then filter
-      const snapshot = await db.collection('families').orderBy('createdAt','desc').limit(200).get();
-      const items = [];
-      snapshot.forEach(doc=>{
-        const d = doc.data();
-        const combined = ((d.headName||'') + ' ' + (d.familyCode||'') + ' ' + (d.gothram||'') + ' ' + (d.place||'')).toLowerCase();
-        if(combined.indexOf(qLower) !== -1) items.push({id:doc.id, data:d});
-      });
-
-      if(items.length===0){ out.innerHTML = '<div class="small muted">No matches</div>'; return; }
-      out.innerHTML='';
-      items.forEach(it=>{
-        const d = it.data; const div = document.createElement('div'); div.className='result-item';
-        div.innerHTML = `<div><div style="font-weight:700">${escapeHtml(d.headName)}</div><div class="small muted">${escapeHtml(d.place)} • ${escapeHtml(d.gothram)} • Code: ${escapeHtml(d.familyCode||'')}</div></div>`;
-        const actions = document.createElement('div'); actions.className='flex';
-        const btnView = document.createElement('button'); btnView.className='btn secondary'; btnView.textContent='View'; btnView.onclick = ()=>viewFamilyPreview(it.id);
-        const btnRequest = document.createElement('button'); btnRequest.className='btn'; btnRequest.textContent='Request Details'; btnRequest.onclick = ()=>requestDetails(it.id);
-        actions.appendChild(btnView); actions.appendChild(btnRequest);
-        div.appendChild(actions);
-        out.appendChild(div);
-      })
-    }
-
-    function debouncedSearch(){ clearTimeout(searchTimeout); const q = document.getElementById('searchInput').value.trim(); searchTimeout = setTimeout(()=>searchFamilies(q), 350); }
-    function clearSearch(){ document.getElementById('searchInput').value=''; document.getElementById('searchResults').innerHTML=''; }
-
-    async function viewFamilyPreview(docId){
-      const doc = await db.collection('families').doc(docId).get();
-      if(!doc.exists){ alert('Family not found'); return; }
-      const d = doc.data();
-      const el = document.getElementById('familyPreview');
-      el.innerHTML = '';
-
-      // Render a simple preview using public fields only
-      const node = document.createElement('div'); node.className='node current'; node.innerHTML = `<div style="font-weight:700">${escapeHtml(d.headName)}</div><div class="small muted">${escapeHtml(d.place)}</div><div class="small muted">${escapeHtml(d.gothram)}</div>`;
-      el.appendChild(node);
-
-      // store last selected
-      el.dataset.familyId = docId;
-      showTab('myNetwork');
-    }
-
-    async function requestDetails(familyId){
-      if(!currentUser){ alert('Sign in to request details'); return; }
-      await db.collection('detailRequests').add({ familyId, requestedBy: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp(), status:'pending' });
-      alert('Request submitted to admin. You will be notified when approved.');
-    }
-
-    // Explore families with filters
-    async function loadExplore(){
-      const gothram = document.getElementById('filterGothram').value;
-      const region = document.getElementById('filterRegion').value;
-      const out = document.getElementById('exploreResults'); out.innerHTML='Loading...';
-      let q = db.collection('families').orderBy('createdAt','desc').limit(500);
-      const snapshot = await q.get();
-      const items = [];
-      snapshot.forEach(doc=>{
-        const d = doc.data();
-        if(gothram && d.gothram !== gothram) return;
-        if(region && d.place !== region) return;
-        items.push({id:doc.id,data:d});
-      });
-      if(items.length===0){ out.innerHTML='<div class="small muted">No families found</div>'; return; }
-      out.innerHTML='';
-      items.forEach(it=>{
-        const d = it.data; const div = document.createElement('div'); div.className='result-item';
-        div.innerHTML = `<div><div style="font-weight:700">${escapeHtml(d.headName)}</div><div class="small muted">${escapeHtml(d.place)} • ${escapeHtml(d.gothram)}</div></div>`;
-        const actions = document.createElement('div'); actions.className='flex';
-        const btnView = document.createElement('button'); btnView.className='btn secondary'; btnView.textContent='View'; btnView.onclick = ()=>viewFamilyPreview(it.id);
-        actions.appendChild(btnView);
-        div.appendChild(actions);
-        out.appendChild(div);
-      })
-    }
-
-    // ---------- Misc ----------
-    async function requestExport(){ const el = document.getElementById('familyPreview'); if(!el.dataset.familyId) { alert('Select a family first'); return; } await requestDetails(el.dataset.familyId); }
-    function shareFamilyLink(){ const el = document.getElementById('familyPreview'); if(!el.dataset.familyId){ alert('Select a family first'); return; } prompt('Share this family code with others', el.dataset.familyId); }
-
-    // ---------- small helpers and initialization ----------
-    (function init(){
-      // initial explore list
-      loadExplore();
-      document.getElementById('adminPanel').style.display='none';
-    })();
-
-  </script>
+<div id="modalOverlay">
+  <div id="modal"></div>
+</div>
 </body>
 </html>
